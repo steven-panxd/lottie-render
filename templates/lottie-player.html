@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lottie Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+        }
+
+        #lottie-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="lottie-container"></div>
+
+    <!-- 使用 CDN 加载 lottie-web -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
+
+    <script>
+        // 这些变量将被 Playwright 注入
+        const LOTTIE_JSON = window.LOTTIE_JSON;
+        const WIDTH = window.WIDTH || 1920;
+        const HEIGHT = window.HEIGHT || 1080;
+        const BG_COLOR = window.BG_COLOR || 'transparent';
+        const AUTOPLAY = window.AUTOPLAY !== false; // 默认自动播放
+
+        // 设置背景色
+        if (BG_COLOR && BG_COLOR !== 'transparent') {
+            document.body.style.backgroundColor = BG_COLOR;
+        }
+
+        // 设置容器大小
+        const container = document.getElementById('lottie-container');
+        container.style.width = WIDTH + 'px';
+        container.style.height = HEIGHT + 'px';
+
+        // 初始化 Lottie 动画
+        let animationData = LOTTIE_JSON;
+
+        // 如果是字符串,解析为 JSON
+        if (typeof animationData === 'string') {
+            try {
+                animationData = JSON.parse(animationData);
+            } catch (e) {
+                console.error('Failed to parse Lottie JSON:', e);
+                window.ANIMATION_ERROR = e.message;
+            }
+        }
+
+        if (animationData) {
+            try {
+                const animation = lottie.loadAnimation({
+                    container: container,
+                    renderer: 'svg',
+                    loop: false,  // 不循环,播放一次
+                    autoplay: AUTOPLAY,  // 根据注入的变量决定是否自动播放
+                    animationData: animationData,
+                    rendererSettings: {
+                        preserveAspectRatio: 'xMidYMid meet',
+                        progressiveLoad: false,
+                        hideOnTransparent: true
+                    }
+                });
+
+                // ====== 使用 lottie-web 的精确事件 ======
+
+                // DOMLoaded: 第一帧已渲染到 DOM
+                animation.addEventListener('DOMLoaded', () => {
+                    console.log('[lottie-web] DOMLoaded - First frame rendered');
+
+                    // 获取动画信息
+                    window.ANIMATION_INFO = {
+                        duration: animation.getDuration(false), // 秒 (false = 秒, true = 帧)
+                        totalFrames: animation.totalFrames,
+                        frameRate: animation.frameRate,
+                        width: animationData.w,
+                        height: animationData.h
+                    };
+
+                    // 标记第一帧已准备好
+                    window.FIRST_FRAME_READY = true;
+                    console.log(`[lottie-web] Animation info:`, window.ANIMATION_INFO);
+                });
+
+                // complete: 动画播放完成 (非循环动画)
+                animation.addEventListener('complete', () => {
+                    console.log('[lottie-web] complete - Animation finished');
+                    console.log(`[lottie-web] Final frame: ${animation.currentFrame}`);
+
+                    // 标记动画已完成
+                    window.ANIMATION_COMPLETE = true;
+                });
+
+                // data_failed: 动画数据加载失败
+                animation.addEventListener('data_failed', (error) => {
+                    console.error('[lottie-web] data_failed:', error);
+                    window.ANIMATION_ERROR = 'Failed to load animation data';
+                });
+
+                // error: 通用错误
+                animation.addEventListener('error', (error) => {
+                    console.error('[lottie-web] error:', error);
+                    window.ANIMATION_ERROR = error.message || 'Animation error';
+                });
+
+                // 暴露动画实例到 window
+                window.LOTTIE_ANIMATION = animation;
+
+                console.log(`[lottie-web] Animation initialized (autoplay: ${AUTOPLAY})`);
+
+            } catch (e) {
+                console.error('Failed to initialize animation:', e);
+                window.ANIMATION_ERROR = e.message;
+            }
+        } else {
+            console.error('No animation data provided');
+            window.ANIMATION_ERROR = 'No animation data';
+        }
+    </script>
+</body>
+</html>

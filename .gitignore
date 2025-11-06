@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+dist/
+
+# Temporary files
+temp/
+*.tmp
+
+# Output videos
+videos/
+*.mp4
+*.webm
+
+# Logs
+logs/
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Samples folder (track folder, ignore contents)
+samples/*.json
+!samples/.gitkeep
