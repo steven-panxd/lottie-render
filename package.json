@@ -18,6 +18,9 @@
   ],
   "author": "",
   "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
     "express": "^4.18.2",
     "playwright": "^1.40.1",
