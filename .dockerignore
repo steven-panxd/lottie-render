@@ -1,0 +1,52 @@
+# Dependencies
+node_modules
+npm-debug.log
+# package-lock.json  <- DO NOT ignore, needed for npm ci in Docker build
+
+# Build output
+dist
+
+# Temporary files
+temp
+*.tmp
+
+# Output videos
+videos
+*.mp4
+*.webm
+
+# Logs
+logs
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+DEVELOPMENT_PLAN.md
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Samples (optional - include if you want them in the image)
+# samples

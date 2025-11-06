@@ -1,0 +1,79 @@
+# Multi-stage build for Lottie render service
+
+# Stage 1: Build
+FROM node:20-bookworm AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Build TypeScript
+RUN npm run build
+
+# Stage 2: Production
+FROM node:20-bookworm-slim
+
+# Install system dependencies for Playwright and FFmpeg
+RUN apt-get update && apt-get install -y \
+    # FFmpeg for video composition
+    ffmpeg \
+    # Playwright Chromium dependencies
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpango-1.0-0 \
+    libcairo2 \
+    # Fonts
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    # Clean up
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Create non-root user
+RUN useradd -m -u 1001 appuser && \
+    chown -R appuser:appuser /app
+
+# Copy built application from builder
+COPY --from=builder --chown=appuser:appuser /app/dist ./dist
+COPY --from=builder --chown=appuser:appuser /app/node_modules ./node_modules
+COPY --from=builder --chown=appuser:appuser /app/package.json ./
+COPY --chown=appuser:appuser templates ./templates
+
+# Create necessary directories
+RUN mkdir -p videos temp logs && \
+    chown -R appuser:appuser videos temp logs
+
+# Switch to non-root user
+USER appuser
+
+# Install Playwright Chromium
+RUN npx playwright install chromium
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
+
+# Start application
+CMD ["node", "dist/index.js"]

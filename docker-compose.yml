@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  lottie-service:
+    build: .
+    container_name: lottie-render-service
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - API_KEY=${API_KEY}
+      - MAX_CONCURRENT_RENDERS=${MAX_CONCURRENT_RENDERS:-5}
+    volumes:
+      # Optional: Mount logs for persistence
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    # Resource limits (adjust based on your server)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 512M

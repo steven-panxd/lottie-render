@@ -49,7 +49,8 @@ export async function renderLottieToVideoFrameByFrame(
       width: options.width || lottieJson.w || 1920,
       height: options.height || lottieJson.h || 1080,
       fps: options.fps || metadata.fps || 30,
-      backgroundColor: options.backgroundColor || 'transparent'
+      backgroundColor: options.backgroundColor || 'transparent',
+      quality: options.quality || 80  // JPEG 质量，默认 80
     };
 
     console.log('Render config:', config);
@@ -136,7 +137,7 @@ export async function renderLottieToVideoFrameByFrame(
       // 截图到内存（返回 Buffer，不写磁盘）
       const screenshotBuffer = await page.screenshot({
         type: 'jpeg',
-        quality: 78, // 78% 质量，质量和速度的最佳平衡点
+        quality: config.quality,
         fullPage: false
       });
 

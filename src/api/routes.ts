@@ -8,6 +8,12 @@ import { apiKeyAuth, upload } from './app';
 
 const router = Router();
 
+// 并发控制
+let activeRenders = 0;
+const MAX_CONCURRENT_RENDERS = process.env.MAX_CONCURRENT_RENDERS
+  ? parseInt(process.env.MAX_CONCURRENT_RENDERS)
+  : 5;
+
 /**
  * POST /api/render
  * 提交 Lottie 渲染任务
@@ -26,6 +32,16 @@ router.post(
           success: false,
           error:
             'No file uploaded. Please upload a Lottie JSON file with key "file"',
+        });
+      }
+
+      // 检查并发限制
+      if (activeRenders >= MAX_CONCURRENT_RENDERS) {
+        return res.status(503).json({
+          success: false,
+          error: `Server is busy. Maximum ${MAX_CONCURRENT_RENDERS} concurrent renders allowed. Please retry later.`,
+          activeRenders,
+          maxConcurrent: MAX_CONCURRENT_RENDERS,
         });
       }
 
@@ -53,83 +69,105 @@ router.post(
       const taskId = randomUUID();
       console.log(`📥 Received render task: ${taskId}`);
 
-      // 保存临时 JSON 文件
-      const tempJsonPath = path.join(process.cwd(), 'temp', `${taskId}.json`);
-      await fs.mkdir(path.join(process.cwd(), 'temp'), { recursive: true });
-      await fs.writeFile(tempJsonPath, JSON.stringify(lottieJson));
+      // 递增并发计数器
+      activeRenders++;
+      console.log(`🔢 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
 
-      // 执行渲染（同步方式，Phase 3 将改为异步队列）
-      console.log(`🎬 Starting render for task: ${taskId}`);
-      const startTime = Date.now();
+      // 标记是否需要在sendFile回调中递减计数器
+      let decrementInCallback = false;
 
-      const result = await renderLottieToVideoFrameByFrame(
-        tempJsonPath,
-        options
-      );
+      try {
+        // 保存临时 JSON 文件
+        const tempJsonPath = path.join(process.cwd(), 'temp', `${taskId}.json`);
+        await fs.mkdir(path.join(process.cwd(), 'temp'), { recursive: true });
+        await fs.writeFile(tempJsonPath, JSON.stringify(lottieJson));
 
-      const renderTime = Date.now() - startTime;
+        // 执行渲染（同步方式，Phase 3 将改为异步队列）
+        console.log(`🎬 Starting render for task: ${taskId}`);
+        const startTime = Date.now();
 
-      // 清理临时 JSON 文件
-      await fs.unlink(tempJsonPath).catch(() => {});
+        const result = await renderLottieToVideoFrameByFrame(
+          tempJsonPath,
+          options
+        );
 
-      if (!result.success) {
-        console.error(`❌ Render failed for task ${taskId}:`, result.error);
-        return res.status(500).json({
-          success: false,
-          taskId,
-          error: result.error,
-        });
-      }
+        const renderTime = Date.now() - startTime;
 
-      console.log(`✅ Render completed for task ${taskId} in ${renderTime}ms`);
+        // 清理临时 JSON 文件
+        await fs.unlink(tempJsonPath).catch(() => {});
 
-      const videoPath = result.videoPath!;
+        if (!result.success) {
+          console.error(`❌ Render failed for task ${taskId}:`, result.error);
+          return res.status(500).json({
+            success: false,
+            taskId,
+            error: result.error,
+          });
+        }
 
-      // 设置响应头 - 将元数据放在 header 中
-      res.setHeader('Content-Type', 'video/mp4');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="lottie-${taskId}.mp4"`
-      );
-      res.setHeader('X-Task-ID', taskId);
-      res.setHeader('X-Render-Duration', renderTime.toString());
-      res.setHeader(
-        'X-Video-Duration',
-        result.metadata?.duration.toString() || '0'
-      );
-      res.setHeader('X-Video-FPS', result.metadata?.fps.toString() || '0');
-      res.setHeader('X-Video-Width', result.metadata?.width.toString() || '0');
-      res.setHeader(
-        'X-Video-Height',
-        result.metadata?.height.toString() || '0'
-      );
+        console.log(`✅ Render completed for task ${taskId} in ${renderTime}ms`);
 
-      // 发送视频文件
-      res.sendFile(videoPath, async (err) => {
-        if (err) {
-          console.error(`❌ Error sending video file for task ${taskId}:`, err);
-          // 如果还没发送响应头，发送错误
-          if (!res.headersSent) {
-            res.status(500).json({
-              success: false,
-              error: 'Failed to send video file',
-            });
+        const videoPath = result.videoPath!;
+
+        // 设置响应头 - 将元数据放在 header 中
+        res.setHeader('Content-Type', 'video/mp4');
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="lottie-${taskId}.mp4"`
+        );
+        res.setHeader('X-Task-ID', taskId);
+        res.setHeader('X-Render-Duration', renderTime.toString());
+        res.setHeader(
+          'X-Video-Duration',
+          result.metadata?.duration.toString() || '0'
+        );
+        res.setHeader('X-Video-FPS', result.metadata?.fps.toString() || '0');
+        res.setHeader('X-Video-Width', result.metadata?.width.toString() || '0');
+        res.setHeader(
+          'X-Video-Height',
+          result.metadata?.height.toString() || '0'
+        );
+
+        // 标记需要在回调中递减计数器
+        decrementInCallback = true;
+
+        // 发送视频文件
+        res.sendFile(videoPath, async (err) => {
+          // 递减并发计数器
+          activeRenders--;
+          console.log(`🔢 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
+
+          if (err) {
+            console.error(`❌ Error sending video file for task ${taskId}:`, err);
+            // 如果还没发送响应头，发送错误
+            if (!res.headersSent) {
+              res.status(500).json({
+                success: false,
+                error: 'Failed to send video file',
+              });
+            }
+          } else {
+            console.log(`📤 Video file sent successfully for task ${taskId}`);
           }
-        } else {
-          console.log(`📤 Video file sent successfully for task ${taskId}`);
-        }
 
-        // 无论成功还是失败，都删除临时视频文件
-        try {
-          await fs.unlink(videoPath);
-          console.log(`🗑️  Deleted temporary video: ${videoPath}`);
-        } catch (cleanupError) {
-          console.error(
-            `⚠️  Failed to delete temporary video: ${videoPath}`,
-            cleanupError
-          );
+          // 无论成功还是失败，都删除临时视频文件
+          try {
+            await fs.unlink(videoPath);
+            console.log(`🗑️  Deleted temporary video: ${videoPath}`);
+          } catch (cleanupError) {
+            console.error(
+              `⚠️  Failed to delete temporary video: ${videoPath}`,
+              cleanupError
+            );
+          }
+        });
+      } finally {
+        // 如果没有标记在sendFile回调中递减，就在这里递减
+        if (!decrementInCallback) {
+          activeRenders--;
+          console.log(`🔢 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
         }
-      });
+      }
     } catch (error: any) {
       console.error('Render error:', error);
       res.status(500).json({
