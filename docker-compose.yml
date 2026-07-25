@@ -3,7 +3,7 @@ version: '3.8'
 services:
   lottie-service:
     build: .
-    container_name: lottie-render-service
+    container_name: lottie-render
     ports:
       - "${PORT:-3000}:3000"
     environment:

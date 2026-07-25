@@ -1,54 +1,26 @@
-# Lottie Samples
+# samples/
 
-将你的 Lottie JSON 文件放在这个文件夹中。
+Scratch space for your own Lottie JSON files during local testing. Contents of this folder (other than this file) are gitignored.
 
-## 使用方法
+## Usage
 
-1. **添加 JSON 文件**
-   ```bash
-   # 将你的 Lottie JSON 文件复制到这个文件夹
-   cp /path/to/your/animation.json samples/
-   ```
-
-2. **批量渲染所有文件**
-   ```bash
-   npm run batch:render
-   ```
-
-3. **查看生成的视频**
-   ```bash
-   # 视频会保存在 videos/ 文件夹中
-   open videos/
-   ```
-
-## 示例
+Drop a Lottie JSON file here and render it through the running API:
 
 ```bash
-samples/
-├── animation1.json
-├── animation2.json
-└── animation3.json
+cp /path/to/your/animation.json samples/
+
+curl -X POST http://localhost:3000/api/render \
+  -H "X-API-Key: your-api-key" \
+  -F "file=@samples/animation.json" \
+  -o videos/animation.mp4
 ```
 
-运行 `npm run batch:render` 后会生成：
+For a fixed, version-controlled example, see [test/fixtures/sample.json](../test/fixtures/sample.json) — that's also what `npm run test:render` renders.
 
-```bash
-videos/
-├── lottie-1234567890.mp4  (from animation1.json)
-├── lottie-1234567891.mp4  (from animation2.json)
-└── lottie-1234567892.mp4  (from animation3.json)
-```
+## Supported input
 
-## 支持的格式
+- Lottie JSON (`.json`)
+- bodymovin JSON exported from After Effects
+- JSON downloaded from LottieFiles
 
-- ✅ Lottie JSON (.json)
-- ✅ 从 After Effects 导出的 bodymovin JSON
-- ✅ LottieFiles 下载的 JSON
-
-## 渲染配置
-
-默认配置：
-- 分辨率: 1920x1080
-- 帧率: 30 fps
-- 背景色: 白色 (#ffffff)
-- 格式: MP4 (H.264)
+Assets referenced by external URL are not fetched for security reasons (see the Security section of the main [README](../README.md)) — use files where images/fonts are embedded as base64, which is how most real-world exports work.

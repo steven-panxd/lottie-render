@@ -27,31 +27,34 @@
 <body>
     <div id="lottie-container"></div>
 
-    <!-- 使用 CDN 加载 lottie-web -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
+    <!-- Vendored locally (not loaded from a CDN) so rendering works offline
+         and so the browser context's network interception (see
+         frame-by-frame.ts) can safely block all non-local requests without
+         breaking the player itself. -->
+    <script src="vendor/lottie.min.js"></script>
 
     <script>
-        // 这些变量将被 Playwright 注入
+        // These globals are injected by Playwright via addInitScript
         const LOTTIE_JSON = window.LOTTIE_JSON;
         const WIDTH = window.WIDTH || 1920;
         const HEIGHT = window.HEIGHT || 1080;
         const BG_COLOR = window.BG_COLOR || 'transparent';
-        const AUTOPLAY = window.AUTOPLAY !== false; // 默认自动播放
+        const AUTOPLAY = window.AUTOPLAY !== false; // autoplay by default
 
-        // 设置背景色
+        // Apply background color
         if (BG_COLOR && BG_COLOR !== 'transparent') {
             document.body.style.backgroundColor = BG_COLOR;
         }
 
-        // 设置容器大小
+        // Size the container
         const container = document.getElementById('lottie-container');
         container.style.width = WIDTH + 'px';
         container.style.height = HEIGHT + 'px';
 
-        // 初始化 Lottie 动画
+        // Initialize the Lottie animation
         let animationData = LOTTIE_JSON;
 
-        // 如果是字符串,解析为 JSON
+        // Parse if the data was passed as a JSON string
         if (typeof animationData === 'string') {
             try {
                 animationData = JSON.parse(animationData);
@@ -66,8 +69,8 @@
                 const animation = lottie.loadAnimation({
                     container: container,
                     renderer: 'svg',
-                    loop: false,  // 不循环,播放一次
-                    autoplay: AUTOPLAY,  // 根据注入的变量决定是否自动播放
+                    loop: false,  // play once, no looping
+                    autoplay: AUTOPLAY,  // controlled by the injected AUTOPLAY flag
                     animationData: animationData,
                     rendererSettings: {
                         preserveAspectRatio: 'xMidYMid meet',
@@ -76,48 +79,46 @@
                     }
                 });
 
-                // ====== 使用 lottie-web 的精确事件 ======
+                // ====== lottie-web lifecycle events used by the renderer ======
 
-                // DOMLoaded: 第一帧已渲染到 DOM
+                // DOMLoaded: first frame has been rendered to the DOM
                 animation.addEventListener('DOMLoaded', () => {
                     console.log('[lottie-web] DOMLoaded - First frame rendered');
 
-                    // 获取动画信息
                     window.ANIMATION_INFO = {
-                        duration: animation.getDuration(false), // 秒 (false = 秒, true = 帧)
+                        duration: animation.getDuration(false), // seconds (false = seconds, true = frames)
                         totalFrames: animation.totalFrames,
                         frameRate: animation.frameRate,
                         width: animationData.w,
                         height: animationData.h
                     };
 
-                    // 标记第一帧已准备好
+                    // Signal that Playwright can start capturing frames
                     window.FIRST_FRAME_READY = true;
                     console.log(`[lottie-web] Animation info:`, window.ANIMATION_INFO);
                 });
 
-                // complete: 动画播放完成 (非循环动画)
+                // complete: playback finished (non-looping animations)
                 animation.addEventListener('complete', () => {
                     console.log('[lottie-web] complete - Animation finished');
                     console.log(`[lottie-web] Final frame: ${animation.currentFrame}`);
 
-                    // 标记动画已完成
                     window.ANIMATION_COMPLETE = true;
                 });
 
-                // data_failed: 动画数据加载失败
+                // data_failed: animation data failed to load
                 animation.addEventListener('data_failed', (error) => {
                     console.error('[lottie-web] data_failed:', error);
                     window.ANIMATION_ERROR = 'Failed to load animation data';
                 });
 
-                // error: 通用错误
+                // error: generic error
                 animation.addEventListener('error', (error) => {
                     console.error('[lottie-web] error:', error);
                     window.ANIMATION_ERROR = error.message || 'Animation error';
                 });
 
-                // 暴露动画实例到 window
+                // Expose the animation instance for Playwright to control
                 window.LOTTIE_ANIMATION = animation;
 
                 console.log(`[lottie-web] Animation initialized (autoplay: ${AUTOPLAY})`);
