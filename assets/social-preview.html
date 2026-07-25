@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @font-face {
+    font-family: 'ui-sans';
+    src: local('Helvetica Neue'), local('Arial');
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 1280px;
+    height: 640px;
+    overflow: hidden;
+    background: #0b1220;
+    font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  }
+  .bg-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(148,163,184,0.16) 1px, transparent 0);
+    background-size: 28px 28px;
+    -webkit-mask-image: linear-gradient(120deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0) 100%);
+    mask-image: linear-gradient(120deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.15) 65%, rgba(0,0,0,0) 100%);
+  }
+  .glow {
+    position: absolute;
+    width: 900px;
+    height: 900px;
+    right: -280px;
+    top: -220px;
+    background: radial-gradient(circle, rgba(150,97,246,0.35) 0%, rgba(59,130,246,0.16) 45%, rgba(11,18,32,0) 72%);
+    filter: blur(2px);
+  }
+  .stage {
+    position: relative;
+    width: 1280px;
+    height: 640px;
+  }
+  .content {
+    position: absolute;
+    left: 88px;
+    top: 0;
+    height: 640px;
+    width: 660px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    color: #93c5fd;
+    background: rgba(59,130,246,0.12);
+    border: 1px solid rgba(59,130,246,0.35);
+    padding: 6px 14px;
+    border-radius: 999px;
+    margin-bottom: 28px;
+  }
+  .eyebrow .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #f15a98);
+  }
+  h1 {
+    font-size: 76px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.02;
+    color: #f8fafc;
+  }
+  h1 .render {
+    background: linear-gradient(100deg, #60a5fa 0%, #a78bfa 45%, #f472b6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .tagline {
+    margin-top: 22px;
+    font-size: 25px;
+    line-height: 1.45;
+    color: #b7c0d1;
+    font-weight: 400;
+    max-width: 560px;
+  }
+  .code-chip {
+    margin-top: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 20px;
+    color: #dbeafe;
+    background: rgba(148,163,184,0.08);
+    border: 1px solid rgba(148,163,184,0.22);
+    border-radius: 10px;
+    padding: 14px 20px;
+    width: fit-content;
+  }
+  .code-chip .arrow { color: #f472b6; font-weight: 700; }
+  .code-chip .fn { color: #7dd3fc; }
+  .code-chip .out { color: #fbcfe8; }
+  .footer-row {
+    margin-top: 44px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    font-size: 18px;
+    color: #7e8ba3;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: nowrap;
+  }
+  .footer-row b { color: #cbd5e1; font-weight: 600; }
+  .footer-sep { width: 4px; height: 4px; border-radius: 50%; background: #475569; flex: none; }
+
+  /* Signature element: a frame-by-frame fan of the render icon,
+     conveying the literal mechanism (capturing discrete frames)
+     rather than a decorative flourish. */
+  .icon-stack {
+    position: absolute;
+    right: 96px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 420px;
+    height: 420px;
+  }
+  .frame {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 236px;
+    height: 236px;
+    border-radius: 52px;
+  }
+  .frame .inner {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 44%;
+    height: 44%;
+    border-radius: 30%;
+    background: #f5f3ff;
+    transform: translate(-50%,-50%);
+  }
+  .f1 { transform: translate(calc(-50% - 108px), calc(-50% + 72px)) rotate(-32deg) scale(0.56); opacity: 0.16; background: #3b82f6; }
+  .f2 { transform: translate(calc(-50% - 78px),  calc(-50% + 52px)) rotate(-22deg) scale(0.68); opacity: 0.3;  background: #6d8ef8; }
+  .f3 { transform: translate(calc(-50% - 48px),  calc(-50% + 32px)) rotate(-13deg) scale(0.8);  opacity: 0.48; background: #9861f6; }
+  .f4 { transform: translate(calc(-50% - 20px),  calc(-50% + 13px)) rotate(-6deg)  scale(0.92); opacity: 0.72; background: #c563d6; }
+  .f5 { transform: translate(-50%,-50%) rotate(0deg) scale(1.06); opacity: 1; background: #f15a98;
+        box-shadow: 0 24px 70px -18px rgba(241,90,152,0.55), 0 8px 28px -10px rgba(59,130,246,0.35); }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="glow"></div>
+    <div class="bg-grid"></div>
+
+    <div class="content">
+      <div class="eyebrow"><span class="dot"></span>OPEN SOURCE · NPM + SELF-HOSTED</div>
+      <h1>lottie&#8209;<span class="render">render</span></h1>
+      <div class="tagline">Render Lottie animations to MP4 video, frame by frame — as a library you import, or a self-hosted HTTP service.</div>
+      <div class="code-chip"><span class="fn">renderLottie(json)</span><span class="arrow">&rarr;</span><span class="out">out.mp4</span></div>
+      <div class="footer-row">
+        <span><b>npm install</b> lottie-render</span>
+        <span class="footer-sep"></span>
+        <span>github.com/steven-panxd/lottie-render</span>
+      </div>
+    </div>
+
+    <div class="icon-stack">
+      <div class="frame f1"><div class="inner"></div></div>
+      <div class="frame f2"><div class="inner"></div></div>
+      <div class="frame f3"><div class="inner"></div></div>
+      <div class="frame f4"><div class="inner"></div></div>
+      <div class="frame f5"><div class="inner"></div></div>
+    </div>
+  </div>
+</body>
+</html>
