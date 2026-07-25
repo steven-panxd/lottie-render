@@ -1,10 +1,14 @@
 # lottie-render
 
 [![CI](https://github.com/steven-panxd/lottie-render/actions/workflows/ci.yml/badge.svg)](https://github.com/steven-panxd/lottie-render/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/lottie-render.svg)](https://www.npmjs.com/package/lottie-render)
+[![license](https://img.shields.io/npm/l/lottie-render.svg)](LICENSE)
 
 Render [Lottie](https://lottiefiles.com/) animations (After Effects / bodymovin JSON) to MP4 video, frame by frame, using headless Chromium (via [Playwright](https://playwright.dev/)) and FFmpeg — as a library you `import`, or as a self-hosted HTTP service.
 
-Rather than capturing a real-time screen recording of the animation playing, this renderer pauses playback and screenshots one exact frame at a time, then composes the frame sequence into a video. That trades a bit of raw speed for deterministic output: no dropped frames, no white-flash-on-load, and video duration accurate to a single frame.
+![lottie-render turning a Lottie animation into an MP4, frame by frame](assets/demo.gif)
+
+Rather than capturing a real-time screen recording of the animation playing, this renderer pauses playback and screenshots one exact frame at a time, then composes the frame sequence into a video. That trades a bit of raw speed for deterministic output: no dropped frames, no white-flash-on-load, and video duration accurate to a single frame. The animation above is [assets/demo-animation.json](assets/demo-animation.json), rendered by this library.
 
 ## Install
 
