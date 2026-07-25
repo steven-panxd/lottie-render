@@ -2,30 +2,34 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import path from 'path';
 
-// 配置 multer 用于文件上传
+// Multer config for handling the uploaded Lottie JSON file
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB 限制
+    fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req, file, cb) => {
-    // 只接受 JSON 文件
+    // Only accept JSON files
     if (file.mimetype === 'application/json' || file.originalname.endsWith('.json')) {
       cb(null, true);
     } else {
-      cb(new Error('Only JSON files are allowed'));
+      const error: any = new Error('Only JSON files are allowed');
+      error.statusCode = 400;
+      cb(error);
     }
   },
 });
 
-// API Key 验证中间件
+/**
+ * API key middleware. In production, API_KEY must be set — the server
+ * refuses to start otherwise (see start.ts). Outside production, an unset
+ * API_KEY disables auth for local development convenience only.
+ */
 function apiKeyAuth(req: Request, res: Response, next: NextFunction) {
   const apiKey = process.env.API_KEY;
 
-  // 如果未配置 API_KEY，跳过验证（开发模式）
   if (!apiKey) {
-    console.warn('⚠️  API_KEY not configured, authentication disabled');
     return next();
   }
 
@@ -48,15 +52,15 @@ function apiKeyAuth(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-// 创建 Express 应用
+// Create the Express application
 export function createApp(): Express {
   const app = express();
 
-  // Body parser - 用于非文件上传的请求
+  // Body parsers for non-file-upload requests
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-  // 请求日志中间件
+  // Request logging middleware
   app.use((req: Request, res: Response, next: NextFunction) => {
     const start = Date.now();
     res.on('finish', () => {
@@ -66,17 +70,17 @@ export function createApp(): Express {
     next();
   });
 
-  // 静态文件服务 - 提供视频下载
+  // Static file serving for rendered videos
   app.use('/videos', express.static(path.join(process.cwd(), 'videos')));
 
   return app;
 }
 
-// 错误处理中间件
+// Error-handling middleware
 export function errorHandler(err: any, req: Request, res: Response, next: NextFunction) {
   console.error('Error:', err);
 
-  // Multer 错误处理
+  // Multer-specific errors
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
@@ -90,7 +94,7 @@ export function errorHandler(err: any, req: Request, res: Response, next: NextFu
     });
   }
 
-  // 通用错误处理
+  // Generic error handling
   res.status(err.statusCode || 500).json({
     success: false,
     error: err.message || 'Internal server error',
@@ -98,5 +102,4 @@ export function errorHandler(err: any, req: Request, res: Response, next: NextFu
   });
 }
 
-// 导出 multer upload 实例和 API Key 验证中间件供路由使用
 export { upload, apiKeyAuth };

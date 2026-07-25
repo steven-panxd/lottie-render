@@ -1,52 +1,62 @@
 /**
- * Lottie 渲染服务的类型定义
+ * Type definitions for the Lottie render service.
  */
 
 /**
- * 渲染配置选项
+ * Render configuration options.
  */
 export interface RenderOptions {
-  width?: number;          // 视频宽度 (默认 1920)
-  height?: number;         // 视频高度 (默认 1080)
-  fps?: number;           // 帧率 (默认 30)
-  backgroundColor?: string;  // 背景色 (默认透明)
-  quality?: number;       // 视频质量 0-100 (默认 80)
+  width?: number;          // Video width (default: the Lottie JSON's own width, else 1920)
+  height?: number;         // Video height (default: the Lottie JSON's own height, else 1080)
+  fps?: number;           // Frame rate (default: the Lottie JSON's own frame rate, else 30)
+  backgroundColor?: string;  // Background color (default transparent)
+  quality?: number;       // JPEG quality 0-100 used for intermediate frame capture (default 80)
+  outputPath?: string;    // Write the final MP4 here instead of a temp file; the caller owns cleanup
+  maxFrames?: number;     // Reject animations requesting more frames than this (default 6000)
+  maxDimension?: number;  // Reject a resolved width/height larger than this, in px (default 4096)
+  headless?: boolean;     // Run the capture browser headless (default true)
 }
 
 /**
- * Lottie 动画元数据
+ * Animation metadata. `extractMetadata()` returns this describing the
+ * source Lottie JSON as authored; `RenderResult.metadata` returns this
+ * describing what was actually rendered (reflecting any `RenderOptions`
+ * overrides), which may differ from the source.
  */
 export interface LottieMetadata {
-  duration: number;      // 动画时长(秒)
-  fps: number;          // 原始帧率
-  width: number;        // 原始宽度
-  height: number;       // 原始高度
-  name?: string;        // 动画名称
+  duration: number;      // Duration (seconds)
+  fps: number;          // Frame rate
+  width: number;        // Width
+  height: number;       // Height
+  name?: string;        // Animation name
 }
 
 /**
- * 渲染结果
+ * Render result. `videoPath` and `videoBuffer` are mutually exclusive: a
+ * path is returned when `RenderOptions.outputPath` was given (the caller
+ * owns that file), otherwise the video is returned in-memory as a Buffer.
  */
 export interface RenderResult {
   success: boolean;
   videoPath?: string;
+  videoBuffer?: Buffer;
   error?: string;
-  duration: number;     // 渲染耗时(毫秒)
+  duration: number;     // Render time (ms)
   metadata?: LottieMetadata;
 }
 
 /**
- * Lottie JSON 基础结构
+ * Base Lottie JSON structure.
  */
 export interface LottieJSON {
-  v: string;           // Lottie 版本
-  fr: number;          // 帧率
-  ip: number;          // 起始帧
-  op: number;          // 结束帧
-  w: number;           // 宽度
-  h: number;           // 高度
-  nm?: string;         // 名称
-  assets?: any[];      // 资源
-  layers?: any[];      // 图层
-  [key: string]: any;  // 其他属性
+  v: string;           // Lottie version
+  fr: number;          // Frame rate
+  ip: number;          // In point (start frame)
+  op: number;          // Out point (end frame)
+  w: number;           // Width
+  h: number;           // Height
+  nm?: string;         // Name
+  assets?: any[];      // Assets
+  layers?: any[];      // Layers
+  [key: string]: any;  // Other properties
 }

@@ -1,11 +1,14 @@
 /**
- * 逐帧截图渲染引擎
- * 使用 Playwright 逐帧截图，然后用 FFmpeg 合成视频
- * 这是最精确和可控的方案
+ * Frame-by-frame rendering engine.
+ * Uses Playwright to screenshot each frame of a Lottie animation, then
+ * composes the frame sequence into an MP4 with FFmpeg. This is the most
+ * precise and controllable approach: every frame is captured deterministically
+ * rather than relying on a real-time screen recording.
  */
 
-import { chromium, Browser, Page } from 'playwright';
+import { chromium, Browser } from 'playwright';
 import * as fs from 'fs/promises';
+import * as os from 'os';
 import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -13,18 +16,28 @@ import { RenderOptions, RenderResult, LottieJSON, LottieMetadata } from '../type
 
 const execAsync = promisify(exec);
 
+const DEFAULT_MAX_FRAMES = 6000;
+const DEFAULT_MAX_DIMENSION = 4096;
+
 /**
- * 逐帧渲染 Lottie 动画为视频
+ * Render a Lottie animation to video, frame by frame.
+ *
+ * @param input Either a parsed Lottie JSON object, or a path to a Lottie
+ *   JSON file on disk.
+ * @param options Render options. If `options.outputPath` is given, the
+ *   final MP4 is written there and `result.videoPath` points to it — the
+ *   caller owns that file. Otherwise the video is written to a temp file,
+ *   read into memory, and the temp file is deleted; `result.videoBuffer`
+ *   holds the video bytes and no file is left behind.
  */
-export async function renderLottieToVideoFrameByFrame(
-  jsonPath: string,
+export async function renderLottie(
+  input: LottieJSON | string,
   options: RenderOptions = {}
 ): Promise<RenderResult> {
   const startTime = Date.now();
   let browser: Browser | null = null;
-  let framesDir: string | null = null;
+  let renderTempDir: string | null = null;
 
-  // 性能计时器
   const timings = {
     browserLaunch: 0,
     pageLoad: 0,
@@ -35,41 +48,72 @@ export async function renderLottieToVideoFrameByFrame(
   };
 
   try {
-    // 1. 读取 Lottie JSON
-    console.log(`Reading Lottie JSON from: ${jsonPath}`);
-    const jsonContent = await fs.readFile(jsonPath, 'utf-8');
-    const lottieJson: LottieJSON = JSON.parse(jsonContent);
+    // 1. Resolve the Lottie JSON, either from a file path or an object passed directly
+    let lottieJson: LottieJSON;
+    if (typeof input === 'string') {
+      console.log(`Reading Lottie JSON from: ${input}`);
+      const jsonContent = await fs.readFile(input, 'utf-8');
+      lottieJson = JSON.parse(jsonContent);
+    } else {
+      lottieJson = input;
+    }
 
-    // 2. 提取元数据
+    const maxFrames = options.maxFrames ?? DEFAULT_MAX_FRAMES;
+    const maxDimension = options.maxDimension ?? DEFAULT_MAX_DIMENSION;
+
+    // 2. Extract metadata
     const metadata = extractMetadata(lottieJson);
     console.log('Animation metadata:', metadata);
 
-    // 3. 应用配置
+    // 3. Resolve render config
     const config = {
       width: options.width || lottieJson.w || 1920,
       height: options.height || lottieJson.h || 1080,
       fps: options.fps || metadata.fps || 30,
       backgroundColor: options.backgroundColor || 'transparent',
-      quality: options.quality || 80  // JPEG 质量，默认 80
+      quality: options.quality || 80  // JPEG quality, default 80
     };
+
+    if (config.width <= 0 || config.width > maxDimension || config.height <= 0 || config.height > maxDimension) {
+      return {
+        success: false,
+        error: `Requested dimensions ${config.width}x${config.height} exceed the maximum allowed dimension of ${maxDimension}px`,
+        duration: Date.now() - startTime
+      };
+    }
 
     console.log('Render config:', config);
 
-    // 4. 计算需要截取的帧数
+    // 4. Compute how many frames need to be captured
     const totalFrames = metadata.totalFrames;
     const duration = metadata.duration;
     console.log(`Total frames to capture: ${totalFrames} (${duration.toFixed(2)}s @ ${metadata.fps}fps)`);
 
-    // 5. 创建内存缓冲区存储帧数据
-    const timestamp = Date.now();
+    if (totalFrames > maxFrames) {
+      return {
+        success: false,
+        error: `Animation has ${totalFrames} frames, which exceeds the maximum allowed (${maxFrames}). Raise options.maxFrames to allow this.`,
+        duration: Date.now() - startTime
+      };
+    }
+
+    if (totalFrames <= 0) {
+      return {
+        success: false,
+        error: `Animation has no frames to render (ip=${lottieJson.ip}, op=${lottieJson.op})`,
+        duration: Date.now() - startTime
+      };
+    }
+
+    // 5. Buffer frames in memory rather than writing to disk during capture
     const frameBuffers: Buffer[] = [];
     console.log(`Using in-memory frame storage (no disk I/O during capture)`);
 
-    // 6. 启动浏览器
+    // 6. Launch the browser
     console.log('\nLaunching browser...');
     const browserStartTime = Date.now();
     browser = await chromium.launch({
-      headless: process.env.NODE_ENV !== 'debug',
+      headless: options.headless ?? true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -84,13 +128,29 @@ export async function renderLottieToVideoFrameByFrame(
       }
     });
 
+    // Lottie JSON is untrusted input and may reference arbitrary asset URLs
+    // (images/fonts). Block every request that isn't loading the local
+    // player template or an inline data/blob URI, so a crafted animation
+    // can't be used to make the process issue outbound requests (SSRF).
+    await context.route('**/*', (route) => {
+      const url = route.request().url();
+      if (url.startsWith('file://') || url.startsWith('data:') || url.startsWith('blob:')) {
+        return route.continue();
+      }
+      console.warn(`Blocked outbound request from rendered page: ${url}`);
+      return route.abort('blockedbyclient');
+    });
+
     const page = await context.newPage();
     timings.browserLaunch = Date.now() - browserStartTime;
 
-    // 7. 注入配置并加载页面
+    // 7. Inject config and load the player page. The template is resolved
+    // relative to this module's own location (not process.cwd()) so this
+    // works whether running from source, compiled to dist/, or installed
+    // as a dependency inside another project.
     console.log('Loading animation...');
     const pageLoadStartTime = Date.now();
-    const templatePath = path.resolve(process.cwd(), 'templates/lottie-player.html');
+    const templatePath = path.resolve(__dirname, '../../templates/lottie-player.html');
     const templateUrl = `file://${templatePath}`;
 
     await page.addInitScript((data) => {
@@ -98,7 +158,7 @@ export async function renderLottieToVideoFrameByFrame(
       (window as any).WIDTH = data.width;
       (window as any).HEIGHT = data.height;
       (window as any).BG_COLOR = data.backgroundColor;
-      (window as any).AUTOPLAY = false; // 不自动播放，手动控制
+      (window as any).AUTOPLAY = false; // playback is driven manually, frame by frame
     }, {
       json: lottieJson,
       width: config.width,
@@ -108,7 +168,7 @@ export async function renderLottieToVideoFrameByFrame(
 
     await page.goto(templateUrl, { waitUntil: 'networkidle' });
 
-    // 8. 等待动画加载完成
+    // 8. Wait until the first frame has rendered
     await page.waitForFunction(() => {
       return (window as any).FIRST_FRAME_READY === true;
     }, { timeout: 30000 });
@@ -116,13 +176,13 @@ export async function renderLottieToVideoFrameByFrame(
 
     console.log('Animation loaded!\n');
 
-    // 9. 逐帧截图到内存
+    // 9. Capture each frame into memory
     console.log('Starting frame-by-frame capture (in-memory)...');
     const frameCaptureStartTime = Date.now();
-    const progressInterval = Math.max(1, Math.floor(totalFrames / 20)); // 每5%显示进度
+    const progressInterval = Math.max(1, Math.floor(totalFrames / 20)); // log roughly every 5%
 
     for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
-      // 跳转到指定帧
+      // Seek to the target frame
       await page.evaluate((frame) => {
         const animation = (window as any).LOTTIE_ANIMATION;
         if (animation) {
@@ -130,21 +190,18 @@ export async function renderLottieToVideoFrameByFrame(
         }
       }, frameIndex);
 
-      // 等待渲染完成（优化后的等待时间）
-      // 大多数动画在 8ms 内就能渲染完成
+      // Give the frame a moment to paint. Most frames render well within 8ms.
       await page.waitForTimeout(8);
 
-      // 截图到内存（返回 Buffer，不写磁盘）
+      // Screenshot straight to a Buffer, no disk I/O
       const screenshotBuffer = await page.screenshot({
         type: 'jpeg',
         quality: config.quality,
         fullPage: false
       });
 
-      // 存入内存数组
       frameBuffers.push(screenshotBuffer);
 
-      // 显示进度和内存使用
       if (frameIndex % progressInterval === 0 || frameIndex === totalFrames - 1) {
         const progress = ((frameIndex + 1) / totalFrames * 100).toFixed(1);
         const memoryMB = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1);
@@ -155,21 +212,22 @@ export async function renderLottieToVideoFrameByFrame(
 
     console.log('\n✅ All frames captured in memory!');
 
-    // 10. 关闭浏览器
+    // 10. Close the browser
     await page.close();
     await context.close();
     await browser.close();
     browser = null;
 
-    // 11. 批量写入帧到临时目录（一次性 I/O）
+    // 11. Batch-write frames to a scratch temp directory (one burst of I/O)
     console.log('\nWriting frames to disk (batch write)...');
     const diskWriteStartTime = Date.now();
-    framesDir = path.resolve(process.cwd(), `temp/frames-${timestamp}`);
-    await fs.mkdir(framesDir, { recursive: true });
+    renderTempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lottie-render-'));
+    const framesDir = path.join(renderTempDir, 'frames');
+    await fs.mkdir(framesDir);
 
-    // 使用 Promise.all 并行写入，加速 I/O
+    // Write frames in parallel to speed up I/O
     const writePromises = frameBuffers.map((buffer, index) => {
-      const framePath = path.join(framesDir!, `frame-${String(index).padStart(5, '0')}.jpg`);
+      const framePath = path.join(framesDir, `frame-${String(index).padStart(5, '0')}.jpg`);
       return fs.writeFile(framePath, buffer);
     });
 
@@ -177,29 +235,36 @@ export async function renderLottieToVideoFrameByFrame(
     timings.diskWrite = Date.now() - diskWriteStartTime;
     console.log(`✅ ${frameBuffers.length} frames written to disk`);
 
-    // 清空内存中的帧数据
+    // Free the in-memory frame buffers
     frameBuffers.length = 0;
 
-    // 12. 使用 FFmpeg 合成视频
+    // 12. Compose the video with FFmpeg. If the caller gave an explicit
+    // outputPath, write there directly (they own the file); otherwise
+    // write into the scratch temp dir and read it back into memory below.
     console.log('\nComposing video with FFmpeg...');
     const ffmpegStartTime = Date.now();
-    const outputDir = path.resolve(process.cwd(), 'videos');
-    await fs.mkdir(outputDir, { recursive: true });
-    const outputPath = path.join(outputDir, `lottie-${timestamp}.mp4`);
+    const finalOutputPath = options.outputPath
+      ? path.resolve(options.outputPath)
+      : path.join(renderTempDir, 'output.mp4');
 
-    await composeVideoFromFrames(framesDir, outputPath, config.fps);
+    if (options.outputPath) {
+      await fs.mkdir(path.dirname(finalOutputPath), { recursive: true });
+    }
+
+    await composeVideoFromFrames(framesDir, finalOutputPath, config.fps);
     timings.ffmpeg = Date.now() - ffmpegStartTime;
 
-    // 13. 清理临时帧
-    console.log('\nCleaning up temporary frames...');
+    // 13. Read the video into memory when no explicit output destination was
+    // requested, then clean up the scratch temp directory either way.
+    console.log('\nCleaning up temporary files...');
     const cleanupStartTime = Date.now();
-    await cleanupFrames(framesDir);
+    const videoBuffer = options.outputPath ? undefined : await fs.readFile(finalOutputPath);
+    await fs.rm(renderTempDir, { recursive: true, force: true });
+    renderTempDir = null;
     timings.cleanup = Date.now() - cleanupStartTime;
-    framesDir = null;
 
     const renderDuration = Date.now() - startTime;
 
-    // 输出详细的性能分析
     console.log('\n' + '='.repeat(60));
     console.log('📊 Performance Breakdown:');
     console.log('='.repeat(60));
@@ -213,25 +278,35 @@ export async function renderLottieToVideoFrameByFrame(
     console.log(`  TOTAL:             ${renderDuration}ms`);
     console.log('='.repeat(60));
     console.log(`\n✅ Rendering completed!`);
-    console.log(`📹 Video saved to: ${outputPath}`);
+    console.log(`📹 Video ${options.outputPath ? `saved to: ${finalOutputPath}` : 'ready in memory'}`);
 
     return {
       success: true,
-      videoPath: outputPath,
+      videoPath: options.outputPath ? finalOutputPath : undefined,
+      videoBuffer,
       duration: renderDuration,
-      metadata
+      // Report what was actually produced, not the source JSON's own
+      // metadata — otherwise overriding width/height/fps via options would
+      // make the returned metadata (and the server's X-Video-* headers)
+      // silently wrong.
+      metadata: {
+        duration: totalFrames / config.fps,
+        fps: config.fps,
+        width: config.width,
+        height: config.height,
+        name: metadata.name
+      }
     };
 
   } catch (error) {
     const renderDuration = Date.now() - startTime;
     console.error('Rendering failed:', error);
 
-    // 清理
-    if (framesDir) {
+    if (renderTempDir) {
       try {
-        await cleanupFrames(framesDir);
+        await fs.rm(renderTempDir, { recursive: true, force: true });
       } catch (cleanupError) {
-        console.error('Failed to cleanup frames:', cleanupError);
+        console.error('Failed to clean up temp directory:', cleanupError);
       }
     }
 
@@ -241,7 +316,6 @@ export async function renderLottieToVideoFrameByFrame(
       duration: renderDuration
     };
   } finally {
-    // 确保浏览器关闭
     if (browser) {
       await browser.close();
     }
@@ -249,22 +323,21 @@ export async function renderLottieToVideoFrameByFrame(
 }
 
 /**
- * 从帧序列合成视频
+ * Compose a video from a directory of numbered JPEG frames.
  */
 async function composeVideoFromFrames(
   framesDir: string,
   outputPath: string,
   fps: number
 ): Promise<void> {
-  // FFmpeg 命令:
-  // -framerate: 输入帧率
-  // -i: 输入文件模式 (frame-%05d.jpg)
-  // -c:v libx264: H.264 编码
-  // -preset medium: 编码速度（medium 比 fast 快 20-30%，质量更好）
-  // -crf 21: 高质量平衡点 (18-22 是视觉无损范围)
-  // -pix_fmt yuv420p: 像素格式 (兼容性最好)
-  // -movflags +faststart: 优化流式播放
-  // -y: 覆盖已存在文件
+  // -framerate: input frame rate
+  // -i: input file pattern (frame-%05d.jpg)
+  // -c:v libx264: H.264 encoding
+  // -preset medium: better quality than "fast" at a reasonable speed cost
+  // -crf 21: high-quality/visually-lossless range is roughly 18-22
+  // -pix_fmt yuv420p: most broadly compatible pixel format
+  // -movflags +faststart: optimizes for streaming playback
+  // -y: overwrite existing output
 
   const inputPattern = path.join(framesDir, 'frame-%05d.jpg');
 
@@ -273,11 +346,10 @@ async function composeVideoFromFrames(
   console.log(`FFmpeg composing at ${fps} fps...`);
 
   try {
-    const { stdout, stderr } = await execAsync(command, {
+    const { stderr } = await execAsync(command, {
       maxBuffer: 10 * 1024 * 1024
     });
 
-    // 显示关键信息
     if (stderr) {
       const lines = stderr.split('\n');
       const progressLine = lines.filter(line => line.includes('frame=')).pop();
@@ -289,7 +361,6 @@ async function composeVideoFromFrames(
     throw new Error(`FFmpeg composition failed: ${error.message}`);
   }
 
-  // 验证输出文件
   try {
     await fs.access(outputPath);
   } catch {
@@ -300,30 +371,10 @@ async function composeVideoFromFrames(
 }
 
 /**
- * 清理临时帧文件
+ * Extract render metadata (duration, fps, dimensions, frame count) from a
+ * Lottie JSON document.
  */
-async function cleanupFrames(framesDir: string): Promise<void> {
-  try {
-    const files = await fs.readdir(framesDir);
-
-    // 删除所有帧文件
-    for (const file of files) {
-      await fs.unlink(path.join(framesDir, file));
-    }
-
-    // 删除目录
-    await fs.rmdir(framesDir);
-
-    console.log(`Deleted ${files.length} temporary frames`);
-  } catch (error) {
-    console.error('Cleanup error:', error);
-  }
-}
-
-/**
- * 从 Lottie JSON 中提取元数据
- */
-function extractMetadata(json: LottieJSON): LottieMetadata & { totalFrames: number } {
+export function extractMetadata(json: LottieJSON): LottieMetadata & { totalFrames: number } {
   const fps = json.fr || 30;
   const startFrame = json.ip || 0;
   const endFrame = json.op || 0;

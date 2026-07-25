@@ -41,7 +41,7 @@ Thumbs.db
 
 # Documentation
 README.md
-DEVELOPMENT_PLAN.md
+DOCKER.md
 
 # Docker
 Dockerfile

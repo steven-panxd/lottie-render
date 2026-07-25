@@ -1,9 +1,9 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Build output
 dist/
+coverage/
 
 # Temporary files
 temp/
@@ -34,6 +34,5 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Samples folder (track folder, ignore contents)
+# Samples folder (track the README, ignore any JSON files dropped in)
 samples/*.json
-!samples/.gitkeep

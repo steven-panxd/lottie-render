@@ -1,28 +1,27 @@
 /**
- * 测试渲染脚本
- * 用于验证核心渲染功能
+ * Manual smoke-test script for the core rendering function.
+ * Run with: npm run test:render
  */
 
-import { renderLottieToVideoFrameByFrame } from './renderer/frame-by-frame';
+import { renderLottie } from './index';
 import * as path from 'path';
 
 async function main() {
   console.log('=== Lottie Render Test ===\n');
 
-  // 测试文件路径
-  const jsonPath = path.resolve(process.cwd(), 'samples/template.json');
+  const jsonPath = path.resolve(process.cwd(), 'test/fixtures/sample.json');
+  const outputPath = path.resolve(process.cwd(), 'videos', 'sample-test.mp4');
 
   console.log(`Testing with file: ${jsonPath}\n`);
 
-  // 开始渲染（使用逐帧方案）
-  const result = await renderLottieToVideoFrameByFrame(jsonPath, {
+  const result = await renderLottie(jsonPath, {
     width: 1920,
     height: 1080,
     fps: 30,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#ffffff',
+    outputPath
   });
 
-  // 输出结果
   console.log('\n=== Render Result ===');
   console.log(JSON.stringify(result, null, 2));
 
@@ -47,7 +46,6 @@ async function main() {
   }
 }
 
-// 运行测试
 main().catch(error => {
   console.error('Test failed with error:', error);
   process.exit(1);

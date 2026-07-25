@@ -8,6 +8,10 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
+# The builder stage only needs to compile TypeScript; Playwright's browser
+# binary is downloaded explicitly in the production stage below instead.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
 # Install dependencies
 RUN npm ci
 
@@ -59,8 +63,8 @@ COPY --from=builder --chown=appuser:appuser /app/package.json ./
 COPY --chown=appuser:appuser templates ./templates
 
 # Create necessary directories
-RUN mkdir -p videos temp logs && \
-    chown -R appuser:appuser videos temp logs
+RUN mkdir -p videos logs && \
+    chown -R appuser:appuser videos logs
 
 # Switch to non-root user
 USER appuser
@@ -76,4 +80,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
 
 # Start application
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/server/start.js"]

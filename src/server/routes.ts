@@ -2,23 +2,35 @@ import { randomUUID } from 'crypto';
 import { Request, Response, Router } from 'express';
 import fs from 'fs/promises';
 import path from 'path';
-import { renderLottieToVideoFrameByFrame } from '../renderer/frame-by-frame';
+import { renderLottie } from '../renderer/frame-by-frame';
 import { RenderOptions } from '../types';
 import { apiKeyAuth, upload } from './app';
 
 const router = Router();
 
-// 并发控制
+// Concurrency control
 let activeRenders = 0;
-const MAX_CONCURRENT_RENDERS = process.env.MAX_CONCURRENT_RENDERS
-  ? parseInt(process.env.MAX_CONCURRENT_RENDERS)
-  : 5;
+function getMaxConcurrentRenders(): number {
+  return process.env.MAX_CONCURRENT_RENDERS
+    ? parseInt(process.env.MAX_CONCURRENT_RENDERS)
+    : 5;
+}
+
+function getMaxDimension(): number {
+  return process.env.MAX_DIMENSION ? parseInt(process.env.MAX_DIMENSION) : 4096;
+}
+
+function getMaxFrames(): number | undefined {
+  return process.env.MAX_FRAMES ? parseInt(process.env.MAX_FRAMES) : undefined;
+}
 
 /**
  * POST /api/render
- * 提交 Lottie 渲染任务
+ * Submit a Lottie render job.
  *
- * 需要上传 JSON 文件，可选的渲染参数
+ * Requires a multipart/form-data upload with the Lottie JSON file plus
+ * optional render parameters. Responds with the rendered MP4 as the
+ * response body; render metadata is returned in response headers.
  */
 router.post(
   '/render',
@@ -26,7 +38,6 @@ router.post(
   upload.single('file'),
   async (req: Request, res: Response) => {
     try {
-      // 检查文件是否上传
       if (!req.file) {
         return res.status(400).json({
           success: false,
@@ -35,17 +46,17 @@ router.post(
         });
       }
 
-      // 检查并发限制
-      if (activeRenders >= MAX_CONCURRENT_RENDERS) {
+      const maxConcurrentRenders = getMaxConcurrentRenders();
+      if (activeRenders >= maxConcurrentRenders) {
         return res.status(503).json({
           success: false,
-          error: `Server is busy. Maximum ${MAX_CONCURRENT_RENDERS} concurrent renders allowed. Please retry later.`,
+          error: `Server is busy. Maximum ${maxConcurrentRenders} concurrent renders allowed. Please retry later.`,
           activeRenders,
-          maxConcurrent: MAX_CONCURRENT_RENDERS,
+          maxConcurrent: maxConcurrentRenders,
         });
       }
 
-      // 解析 Lottie JSON
+      // Parse the Lottie JSON
       let lottieJson;
       try {
         lottieJson = JSON.parse(req.file.buffer.toString('utf-8'));
@@ -56,45 +67,48 @@ router.post(
         });
       }
 
-      // 解析渲染参数（从 form fields 或 query params）
+      const maxDimension = getMaxDimension();
+
+      // Parse render options (from form fields)
       const options: RenderOptions = {
         width: req.body.width ? parseInt(req.body.width) : undefined,
         height: req.body.height ? parseInt(req.body.height) : undefined,
         fps: req.body.fps ? parseInt(req.body.fps) : undefined,
         backgroundColor: req.body.backgroundColor || undefined,
         quality: req.body.quality ? parseInt(req.body.quality) : undefined,
+        maxFrames: getMaxFrames(),
+        maxDimension,
       };
 
-      // 生成任务 ID
+      for (const [key, value] of [
+        ['width', options.width],
+        ['height', options.height],
+      ] as const) {
+        if (value !== undefined && (!Number.isFinite(value) || value <= 0 || value > maxDimension)) {
+          return res.status(400).json({
+            success: false,
+            error: `Invalid ${key}: must be a positive number no greater than ${maxDimension}`,
+          });
+        }
+      }
+
       const taskId = randomUUID();
       console.log(`📥 Received render task: ${taskId}`);
 
-      // 递增并发计数器
       activeRenders++;
-      console.log(`🔢 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
+      console.log(`🔢 Active renders: ${activeRenders}/${maxConcurrentRenders}`);
 
-      // 标记是否需要在sendFile回调中递减计数器
+      // Tracks whether the sendFile callback will decrement the counter
       let decrementInCallback = false;
 
       try {
-        // 保存临时 JSON 文件
-        const tempJsonPath = path.join(process.cwd(), 'temp', `${taskId}.json`);
-        await fs.mkdir(path.join(process.cwd(), 'temp'), { recursive: true });
-        await fs.writeFile(tempJsonPath, JSON.stringify(lottieJson));
-
-        // 执行渲染（同步方式，Phase 3 将改为异步队列）
         console.log(`🎬 Starting render for task: ${taskId}`);
         const startTime = Date.now();
 
-        const result = await renderLottieToVideoFrameByFrame(
-          tempJsonPath,
-          options
-        );
+        const outputPath = path.join(process.cwd(), 'videos', `lottie-${taskId}.mp4`);
+        const result = await renderLottie(lottieJson, { ...options, outputPath });
 
         const renderTime = Date.now() - startTime;
-
-        // 清理临时 JSON 文件
-        await fs.unlink(tempJsonPath).catch(() => {});
 
         if (!result.success) {
           console.error(`❌ Render failed for task ${taskId}:`, result.error);
@@ -109,7 +123,8 @@ router.post(
 
         const videoPath = result.videoPath!;
 
-        // 设置响应头 - 将元数据放在 header 中
+        // Render metadata is returned via response headers since the body
+        // is the video file itself.
         res.setHeader('Content-Type', 'video/mp4');
         res.setHeader(
           'Content-Disposition',
@@ -128,18 +143,14 @@ router.post(
           result.metadata?.height.toString() || '0'
         );
 
-        // 标记需要在回调中递减计数器
         decrementInCallback = true;
 
-        // 发送视频文件
         res.sendFile(videoPath, async (err) => {
-          // 递减并发计数器
           activeRenders--;
-          console.log(`🔢 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
+          console.log(`🔢 Active renders: ${activeRenders}/${maxConcurrentRenders}`);
 
           if (err) {
             console.error(`❌ Error sending video file for task ${taskId}:`, err);
-            // 如果还没发送响应头，发送错误
             if (!res.headersSent) {
               res.status(500).json({
                 success: false,
@@ -150,7 +161,7 @@ router.post(
             console.log(`📤 Video file sent successfully for task ${taskId}`);
           }
 
-          // 无论成功还是失败，都删除临时视频文件
+          // Always delete the temporary video file, success or failure
           try {
             await fs.unlink(videoPath);
             console.log(`🗑️  Deleted temporary video: ${videoPath}`);
@@ -162,10 +173,10 @@ router.post(
           }
         });
       } finally {
-        // 如果没有标记在sendFile回调中递减，就在这里递减
+        // If the callback above didn't run, decrement here
         if (!decrementInCallback) {
           activeRenders--;
-          console.log(`🔢 Active renders: ${activeRenders}/${MAX_CONCURRENT_RENDERS}`);
+          console.log(`🔢 Active renders: ${activeRenders}/${maxConcurrentRenders}`);
         }
       }
     } catch (error: any) {
@@ -180,7 +191,6 @@ router.post(
 
 /**
  * GET /api/health
- * 健康检查端点
  */
 router.get('/health', (req: Request, res: Response) => {
   res.json({
