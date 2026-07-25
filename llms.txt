@@ -1,0 +1,22 @@
+# lottie-render
+
+> Render Lottie (After Effects / bodymovin) animations to MP4 video, frame by frame, using headless Chromium (Playwright) and FFmpeg. Usable as an npm library (`renderLottie()`) or as a self-hosted HTTP service.
+
+Frames are captured deterministically via `goToAndStop`, not sampled off a real-time render loop, so output duration and frame count are exact. The render sandbox blocks all outbound network requests except local/data URIs (SSRF protection for untrusted Lottie input), and rejects animations exceeding configurable frame-count/dimension caps. MIT licensed.
+
+## Docs
+
+- [README](https://github.com/steven-panxd/lottie-render/blob/main/README.md): Installation, `renderLottie()` API reference, architecture, security notes, and the optional HTTP service.
+- [DOCKER.md](https://github.com/steven-panxd/lottie-render/blob/main/DOCKER.md): Deploying the HTTP service with Docker.
+- [Type definitions](https://github.com/steven-panxd/lottie-render/blob/main/src/types/index.ts): `RenderOptions`, `RenderResult`, `LottieJSON`, `LottieMetadata`.
+
+## Examples
+
+- [Library usage](https://github.com/steven-panxd/lottie-render/blob/main/test/e2e/library.test.ts): calling `renderLottie()` directly, with and without `outputPath`.
+- [HTTP API usage](https://github.com/steven-panxd/lottie-render/blob/main/test/e2e/render.test.ts): calling `POST /api/render`.
+- [Installed-package usage](https://github.com/steven-panxd/lottie-render/blob/main/test/e2e/package-install.test.ts): installing the published npm package and calling it from a separate process, including from TypeScript.
+
+## Optional
+
+- [npm package](https://www.npmjs.com/package/lottie-render)
+- [CI workflow](https://github.com/steven-panxd/lottie-render/blob/main/.github/workflows/ci.yml)
