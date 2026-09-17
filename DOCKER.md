@@ -2,7 +2,7 @@
 
 ## Quick start
 
-`docker-compose` reads a `.env` file in the same directory and injects those values into the container.
+`docker compose` reads a `.env` file in the same directory and injects those values into the container.
 
 ```bash
 cp .env.example .env
@@ -22,20 +22,20 @@ MAX_CONCURRENT_RENDERS=5
 Verify how `.env` values get substituted into the compose file:
 
 ```bash
-docker-compose config
+docker compose config
 ```
 
 ## Using Docker Compose (recommended)
 
 ```bash
 # Build and start
-docker-compose up -d
+docker compose up -d
 
 # Tail logs
-docker-compose logs -f
+docker compose logs -f
 
 # Stop
-docker-compose down
+docker compose down
 ```
 
 ## Using plain Docker
@@ -76,7 +76,7 @@ curl http://localhost:3000/api/health
 ```
 
 ```bash
-curl -X POST http://localhost:3000/api/render \
+curl --fail-with-body -X POST http://localhost:3000/api/render \
   -H "X-API-Key: your-api-key" \
   -F "file=@test/fixtures/sample.json" \
   -o test.mp4
@@ -101,33 +101,33 @@ curl -X POST http://localhost:3000/api/render \
 deploy:
   resources:
     limits:
-      cpus: '4'
-      memory: 4G
-    reservations:
       cpus: '2'
-      memory: 1G
+      memory: 2G
+    reservations:
+      cpus: '1'
+      memory: 512M
 ```
 
-Each concurrent render runs its own headless Chromium instance, so size `MAX_CONCURRENT_RENDERS` and the memory limit together — as a rough starting point, budget ~300-500MB per concurrent render plus overhead.
+Each concurrent render runs its own headless Chromium instance and buffers captured frames in memory. Measure representative animations with the full process tree before setting `MAX_CONCURRENT_RENDERS` and container memory limits; the [sample benchmark](docs/benchmarks.md) does not measure total render memory.
 
 ## Troubleshooting
 
 **Container won't start**
 ```bash
-docker-compose logs lottie-service
-docker-compose config   # confirm env vars resolved as expected
+docker compose logs lottie-service
+docker compose config   # confirm env vars resolved as expected
 lsof -i :3000            # check for a port conflict
 ```
 
 **Playwright/Chromium issues** — the image already installs all required system libraries and the Chromium binary at build time. To debug interactively:
 ```bash
-docker-compose exec lottie-service bash
+docker compose exec lottie-service bash
 npx playwright install chromium
 ```
 
 **FFmpeg errors**
 ```bash
-docker-compose exec lottie-service ffmpeg -version
+docker compose exec lottie-service ffmpeg -version
 ```
 
 **Out of memory** — raise the memory limit or lower `MAX_CONCURRENT_RENDERS`.
