@@ -1,0 +1,143 @@
+{
+  "measuredAt": "2026-09-17T21:42:30.435Z",
+  "sourceRevision": "6d45ee6d04ad2b2c5b87a90ae43d606ac4ff1717",
+  "environment": {
+    "os": "Darwin 24.6.0 arm64",
+    "cpu": "Apple M4",
+    "logicalCpus": 10,
+    "systemMemoryGiB": 24,
+    "node": "v24.18.0",
+    "playwright": "1.62.0",
+    "ffmpeg": "ffmpeg version 8.0.1 Copyright (c) 2000-2025 the FFmpeg developers"
+  },
+  "input": {
+    "path": "assets/demo-animation.json",
+    "sha256": "8edaed4afe7abededca87e08370fff5c0b74c9c41156bdd049d93070e86044d3",
+    "layers": 2,
+    "frames": 90,
+    "fps": 30
+  },
+  "method": "Three sequential renders per size, no warm-up, fresh Chromium per render, same Node process. Render time is result.duration (includes browser startup, capture, encoding and cleanup; excludes npm build). Peak Node RSS sampled every 50ms excludes Chromium and FFmpeg and is NOT total render memory. Videos verified with ffprobe.",
+  "results": [
+    {
+      "width": 400,
+      "height": 400,
+      "run": 1,
+      "renderMs": 5082,
+      "peakNodeRssMiB": 130.9,
+      "outputBytes": 115644,
+      "video": {
+        "codec_name": "h264",
+        "width": 400,
+        "height": 400,
+        "pix_fmt": "yuvj420p",
+        "r_frame_rate": "30/1",
+        "duration": "3.000000",
+        "nb_read_frames": "90",
+        "side_data_list": [
+          {}
+        ]
+      }
+    },
+    {
+      "width": 400,
+      "height": 400,
+      "run": 2,
+      "renderMs": 3379,
+      "peakNodeRssMiB": 125.5,
+      "outputBytes": 115644,
+      "video": {
+        "codec_name": "h264",
+        "width": 400,
+        "height": 400,
+        "pix_fmt": "yuvj420p",
+        "r_frame_rate": "30/1",
+        "duration": "3.000000",
+        "nb_read_frames": "90",
+        "side_data_list": [
+          {}
+        ]
+      }
+    },
+    {
+      "width": 400,
+      "height": 400,
+      "run": 3,
+      "renderMs": 3842,
+      "peakNodeRssMiB": 132.9,
+      "outputBytes": 115644,
+      "video": {
+        "codec_name": "h264",
+        "width": 400,
+        "height": 400,
+        "pix_fmt": "yuvj420p",
+        "r_frame_rate": "30/1",
+        "duration": "3.000000",
+        "nb_read_frames": "90",
+        "side_data_list": [
+          {}
+        ]
+      }
+    },
+    {
+      "width": 1080,
+      "height": 1080,
+      "run": 1,
+      "renderMs": 4261,
+      "peakNodeRssMiB": 151,
+      "outputBytes": 351034,
+      "video": {
+        "codec_name": "h264",
+        "width": 1080,
+        "height": 1080,
+        "pix_fmt": "yuvj420p",
+        "r_frame_rate": "30/1",
+        "duration": "3.000000",
+        "nb_read_frames": "90",
+        "side_data_list": [
+          {}
+        ]
+      }
+    },
+    {
+      "width": 1080,
+      "height": 1080,
+      "run": 2,
+      "renderMs": 4407,
+      "peakNodeRssMiB": 154.8,
+      "outputBytes": 351034,
+      "video": {
+        "codec_name": "h264",
+        "width": 1080,
+        "height": 1080,
+        "pix_fmt": "yuvj420p",
+        "r_frame_rate": "30/1",
+        "duration": "3.000000",
+        "nb_read_frames": "90",
+        "side_data_list": [
+          {}
+        ]
+      }
+    },
+    {
+      "width": 1080,
+      "height": 1080,
+      "run": 3,
+      "renderMs": 3972,
+      "peakNodeRssMiB": 140.1,
+      "outputBytes": 351034,
+      "video": {
+        "codec_name": "h264",
+        "width": 1080,
+        "height": 1080,
+        "pix_fmt": "yuvj420p",
+        "r_frame_rate": "30/1",
+        "duration": "3.000000",
+        "nb_read_frames": "90",
+        "side_data_list": [
+          {}
+        ]
+      }
+    }
+  ]
+}

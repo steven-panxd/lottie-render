@@ -1,187 +1,169 @@
 # lottie-render
 
+**Convert Lottie animations to MP4 in your Node.js backend or through a self-hosted HTTP API.**
+
 [![CI](https://github.com/steven-panxd/lottie-render/actions/workflows/ci.yml/badge.svg)](https://github.com/steven-panxd/lottie-render/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/lottie-render.svg)](https://www.npmjs.com/package/lottie-render)
 [![license](https://img.shields.io/npm/l/lottie-render.svg)](LICENSE)
 
-Render [Lottie](https://lottiefiles.com/) animations (After Effects / bodymovin JSON) to MP4 video, frame by frame, using headless Chromium (via [Playwright](https://playwright.dev/)) and FFmpeg — as a library you `import`, or as a self-hosted HTTP service.
+[Quick start](#quick-start) · [Run the demo](#run-the-included-demo) · [HTTP API](docs/http-api.md) · [Benchmarks](docs/benchmarks.md) · [简体中文](README.zh-CN.md)
 
-![lottie-render turning a Lottie animation into an MP4, frame by frame](assets/demo.gif)
+Turn After Effects / bodymovin JSON into a video you can download, share, or pass to another video-processing step. Call `renderLottie()` from your application, or deploy one renderer for services written in different languages.
 
-Rather than capturing a real-time screen recording of the animation playing, this renderer pauses playback and screenshots one exact frame at a time, then composes the frame sequence into a video. That trades a bit of raw speed for deterministic output: no dropped frames, no white-flash-on-load, and video duration accurate to a single frame. The animation above is [assets/demo-animation.json](assets/demo-animation.json), rendered by this library.
+![Preview of the included Lottie animation, rendered with lottie-render](assets/demo.gif)
 
-## Install
+Try this exact animation with `npm run demo` from a checkout. [Input JSON](assets/demo-animation.json) → `videos/demo.mp4` (400 × 400, 3 seconds, 30 fps). The image above is a GIF preview; the renderer produces MP4.
+
+## When to use it
+
+| Your task | How to use lottie-render |
+|---|---|
+| Add “Export as video” to an app that already produces Lottie JSON | Call the Node.js library and save or return the MP4 |
+| Render animations from Python, Go, or another backend | Deploy the HTTP service and upload JSON with a POST request |
+| Convert a collection of self-contained Lottie files | Call the library sequentially from a script or your existing job queue |
+
+The renderer seeks to each source frame with `goToAndStop()` and captures it before encoding, so capture speed does not determine playback speed. It uses lottie-web in Chromium, then FFmpeg for H.264 MP4. The player is bundled locally, and the rendering browser blocks HTTP(S) asset requests.
+
+**Check the fit:** output is opaque MP4 without audio. You need Node.js 20+, Chromium and FFmpeg. Rendering is an offline job, and the service has no built-in queue. See [limitations](#limitations) before integrating.
+
+## Quick start
+
+### 1. Install
+
+Install Node.js 20+ and FFmpeg, then add the package:
 
 ```bash
+# macOS (Homebrew)
+brew install ffmpeg
+
+# Ubuntu / Debian, instead of the command above
+# sudo apt-get update && sudo apt-get install -y ffmpeg
+
 npm install lottie-render
+ffmpeg -version
 ```
 
-This also downloads a Playwright Chromium build on install (needed for rendering) — expect the first `npm install` to take a minute and ~300MB. You'll also need `ffmpeg` on your `PATH`.
+Installation downloads Playwright's Chromium build; allow a few hundred MB and extra time on the first install. On Linux, install browser system dependencies with `npx playwright install --with-deps chromium` if needed. For a containerized setup, use [Docker](DOCKER.md).
 
-## Usage
+### 2. Get a sample and create a script
 
-```ts
+Use your own self-contained Lottie JSON, or download the included sample:
+
+```bash
+curl -fL https://raw.githubusercontent.com/steven-panxd/lottie-render/main/assets/demo-animation.json -o animation.json
+```
+
+Save this as **`render.mjs`** (the `.mjs` extension enables `import` and top-level `await`):
+
+```js
 import { renderLottie } from 'lottie-render';
-import fs from 'fs';
 
-const lottieJson = JSON.parse(fs.readFileSync('animation.json', 'utf-8'));
-
-const result = await renderLottie(lottieJson, {
-  width: 1080,
-  height: 1080,
+const result = await renderLottie('animation.json', {
+  outputPath: 'output.mp4',
   backgroundColor: '#ffffff',
 });
 
-if (result.success) {
-  fs.writeFileSync('out.mp4', result.videoBuffer!);
-} else {
-  console.error(result.error);
-}
+if (!result.success) throw new Error(result.error);
+console.log(`Saved ${result.videoPath}`);
 ```
 
-`renderLottie` also accepts a file path instead of a parsed object:
+### 3. Render
 
-```ts
-await renderLottie('animation.json', { width: 1080, height: 1080 });
+```bash
+node render.mjs
 ```
 
-### API
+Open `output.mp4`. The sample produces a **3-second, 400 × 400 video at 30 fps**. Width, height and frame rate default to the source animation. An existing file at `outputPath` is overwritten.
 
-```ts
-function renderLottie(
-  input: LottieJSON | string,
-  options?: RenderOptions
-): Promise<RenderResult>
-```
+### Run the included demo
 
-`input` — a parsed Lottie JSON object, or a path to a Lottie JSON file on disk.
-
-`options`:
-
-| Option | Default | Description |
-|---|---|---|
-| `width` | the JSON's own width, else 1920 | Output width in px |
-| `height` | the JSON's own height, else 1080 | Output height in px |
-| `fps` | the JSON's own frame rate, else 30 | Output frame rate. The same number of frames is always captured from the source animation (its own `ip`/`op` range); overriding `fps` changes how fast those frames play back, and thus the output's duration, rather than resampling to a different frame count |
-| `backgroundColor` | transparent | e.g. `#ffffff` |
-| `quality` | 80 | JPEG quality 0-100 used for intermediate frame capture |
-| `outputPath` | - | Write the final MP4 here instead of returning it in memory. When set, **you own that file** — it isn't deleted. When omitted, the video is written to a temp file, read into memory, and the temp file is deleted automatically |
-| `maxFrames` | 6000 | Reject animations requesting more frames than this |
-| `maxDimension` | 4096 | Reject a resolved width/height larger than this, in px |
-| `headless` | `true` | Set to `false` to watch the capture browser render (debugging) |
-
-`RenderResult`:
-
-| Field | Description |
-|---|---|
-| `success` | `boolean` |
-| `videoBuffer` | The rendered MP4 as a `Buffer`, present when `outputPath` was **not** given |
-| `videoPath` | Path to the rendered MP4, present when `outputPath` **was** given (equal to it) |
-| `metadata` | `{ duration, fps, width, height, name? }` describing the *actual rendered output* (reflecting any `options` overrides), not necessarily the source JSON's own values |
-| `duration` | Wall-clock render time, ms |
-| `error` | Failure reason, present when `success` is `false` |
-
-### Security note for untrusted input
-
-If you render Lottie files from a source you don't fully trust, be aware: a Lottie JSON can reference external image/font assets by URL. This library blocks every outbound network request the rendering browser makes except `file://`/`data:`/`blob:` URIs — so remote asset URLs simply won't load (this also prevents the render process from being used for SSRF). If you need images or fonts, embed them as base64 in the Lottie JSON, which is how most real-world exports already work. `maxFrames`/`maxDimension` further guard against a crafted animation with an enormous frame range or resolution tying up a render indefinitely.
-
-## Architecture
-
-```
-input (object or file path) → launch headless Chromium
-  → load templates/lottie-player.html (lottie-web, vendored locally — no CDN dependency)
-  → for each frame: goToAndStop(frame) → screenshot → buffer in memory
-  → batch-write frames to a scratch temp dir → ffmpeg -framerate ... → MP4
-  → outputPath given? write there and return videoPath : read into memory, delete temp dir, return videoBuffer
-```
-
-Frame rate, duration, and dimensions default to the Lottie JSON's own metadata (`fr`/`ip`/`op`/`w`/`h`) unless overridden by `options`.
-
-## Optional: run as an HTTP service
-
-The repo also ships an Express-based HTTP service built on top of the library, for cases where you want a shared rendering endpoint instead of embedding the library directly (e.g. multiple apps/languages calling one central renderer). It is **not** required to use `lottie-render` as a library — skip this section if `renderLottie()` is all you need.
-
-### Docker (recommended)
+To try the source checkout without creating a script, install Node.js 20+ and FFmpeg, then run:
 
 ```bash
 git clone https://github.com/steven-panxd/lottie-render.git
 cd lottie-render
-cp .env.example .env
-# edit .env and set API_KEY to a strong secret
-
-docker-compose up -d
-curl http://localhost:3000/api/health
+npm ci
+npm run demo
 ```
 
-See [DOCKER.md](DOCKER.md) for more deployment detail (resource limits, troubleshooting, updates).
+The command builds the library, renders `assets/demo-animation.json`, and prints the output path and render time. It writes `videos/demo.mp4` and overwrites it on subsequent runs.
 
-### Local development
+To render your own file through the same example:
 
 ```bash
-npm install
-cp .env.example .env
-npm run dev
+npm run demo -- samples/animation.json videos/animation.mp4
 ```
 
-### `POST /api/render`
+This is a repository example; the npm package does not currently install a CLI.
 
-`multipart/form-data` request:
+## API
 
-| Field | Required | Description |
-|---|---|---|
-| `file` | yes | The Lottie JSON file |
-| `width` / `height` / `fps` / `backgroundColor` / `quality` | no | Same meaning as the library options above |
+`renderLottie(input, options)` accepts a parsed Lottie object or a local JSON file path. Use `outputPath` to save to disk, or omit it to receive `result.videoBuffer`. Always check `result.success` before using the output.
 
-The response **body is the rendered MP4 file itself**, not JSON — render metadata comes back in response headers: `X-Task-ID`, `X-Render-Duration`, `X-Video-Duration`, `X-Video-FPS`, `X-Video-Width`, `X-Video-Height`. Error responses (4xx/5xx) are JSON: `{ "success": false, "error": "..." }`. A `503` means the server is at its concurrency limit — retry later.
+[Full options and return values](docs/api.md) · [TypeScript types](src/types/index.ts)
+
+**Frame-rate behavior:** overriding `fps` changes playback speed and duration; it does not resample frames to preserve the original duration.
+
+## Run as an HTTP service
+
+From a repository checkout, configure and start the service:
 
 ```bash
-curl -X POST http://localhost:3000/api/render \
+cp .env.example .env
+# Edit .env and replace API_KEY with a strong random secret.
+docker compose up -d --build
+curl --fail http://localhost:3000/api/health
+```
+
+Send the included animation using the same key you put in `.env`:
+
+```bash
+curl --fail-with-body http://localhost:3000/api/render \
   -H "X-API-Key: your-api-key" \
-  -F "file=@animation.json" \
-  -F "width=1080" \
-  -F "height=1080" \
+  -F "file=@assets/demo-animation.json" \
+  -F "backgroundColor=#ffffff" \
   -o output.mp4
 ```
 
-### `GET /api/health`
+The response body is the MP4; errors are JSON. `--fail-with-body` makes HTTP errors produce a nonzero exit status, so check that the command succeeds before opening `output.mp4`. Requests wait for rendering to finish; excess concurrent requests receive `503`.
 
-Unauthenticated liveness/readiness check — returns process uptime and memory usage.
+[Deployment and troubleshooting](DOCKER.md) · [Endpoints, headers and configuration](docs/http-api.md)
 
-### Server-mode configuration (env vars)
+## Performance
 
-These set server-only concerns, or provide the env-var equivalent of the library options above:
+See [measured results and reproduction steps](docs/benchmarks.md) for the included animation at 400 × 400 and 1080 × 1080. Run `npm run benchmark` in a checkout to measure your machine (requires `ffprobe`, normally included with FFmpeg).
 
-| Variable | Default | Description |
-|---|---|---|
-| `PORT` | `3000` | HTTP port |
-| `NODE_ENV` | - | Set to `production` to enable the production auth gate below |
-| `API_KEY` | - | Shared secret required in the `X-API-Key` or `Authorization: Bearer` header. **Required when `NODE_ENV=production`** — the server refuses to start without it. Outside production, an unset key disables auth for local development convenience only |
-| `MAX_CONCURRENT_RENDERS` | `5` | Requests beyond this are rejected with `503` rather than queued (server-only, no library equivalent) |
-| `MAX_FRAMES` | `6000` | Sets the `maxFrames` library option for every render this server handles |
-| `MAX_DIMENSION` | `4096` | Sets the `maxDimension` library option for every render this server handles |
+Rendering time depends on frame count, resolution, animation complexity and hardware. Each render starts its own Chromium instance and buffers captured JPEG frames in memory. Measure representative files before choosing concurrency or container memory limits.
 
-### Security
+## Limitations
 
-- **Auth is fail-closed in production.** If `NODE_ENV=production` and `API_KEY` is unset, the server exits at startup instead of silently running unauthenticated.
-- **No built-in rate limiting** beyond the in-process concurrency counter. If you expose this service publicly, put it behind a reverse proxy or gateway that rate-limits by client.
-- See the library's security note above — it applies identically in server mode.
+- **MP4 only, no audio or alpha channel.** Setting `backgroundColor: 'transparent'` does not produce transparent video. Set an explicit background color for predictable output.
+- **Self-contained assets work best.** HTTP(S) image and font requests are blocked; embed assets and verify your actual animations. Text rendering depends on the glyphs or fonts available to the player. This repo does not certify every Lottie feature or export.
+- **Use even pixel dimensions.** The H.264 encoder uses `yuv420p`, which requires even width and height.
+- **No queue or cross-instance concurrency coordination.** Server limits are per process. Use your own queue for batch jobs.
+- **Capture buffers consume memory.** Long or large animations need more memory. Default caps are 6,000 frames and 4,096 pixels per dimension.
+- The library package also installs the optional server's Express/Multer dependencies.
 
-## Limitations / Roadmap
+## Security
 
-- Installing this package pulls in `express`/`multer` even if you only use the library and never touch the HTTP server — acceptable for this project's size, flagged here rather than engineered around with optional/peer dependencies.
-- Server-mode concurrency limiting is a per-process in-memory counter — it does not coordinate across multiple replicas/instances.
-- No built-in job queue in server mode; the request blocks until the render finishes.
-- No audio support.
-- Rendering is CPU/memory-bound (one headless Chromium instance per concurrent render).
+The rendering browser blocks outbound HTTP(S) requests, and the library applies frame-count and dimension caps. These controls are not a complete isolation boundary for hostile files; local `file://` URLs remain allowed. Run untrusted jobs in an appropriately isolated environment.
 
-## Testing
+The HTTP service requires an API key in production and refuses to start without one. For a public deployment, add a gateway with rate limits. See [library behavior](docs/api.md#security-note-for-untrusted-input) and [server configuration](docs/http-api.md#security).
+
+## Development and feedback
 
 ```bash
-npm test        # unit tests + real end-to-end tests (headless browser + ffmpeg)
+npm ci
 npm run typecheck
+npm run build
+npm test
 ```
 
-The suite (`test/e2e/`) runs real renders — through the library entry point directly, the HTTP API, and (via `npm pack` → `npm install` into a scratch directory → `require('lottie-render')` from a separate process) the actual published package — no mocking of the browser or FFmpeg. This includes a test that the library never writes files into the caller's working directory, and a test that verifies the SSRF protection by asserting a local canary server is never contacted. See [.github/workflows/ci.yml](.github/workflows/ci.yml) for how this runs in CI.
+Tests include real browser/FFmpeg renders, the HTTP API and installation of the packed npm package. They require FFmpeg and Chromium; see [CI](.github/workflows/ci.yml).
+
+Found an animation that renders incorrectly? [Open an issue](https://github.com/steven-panxd/lottie-render/issues/new) with a shareable JSON sample, expected/actual output, OS, Node.js version and FFmpeg version. For feature requests, describe the export workflow you need.
+
+If this helps your workflow, a star makes the project easier to find again and lets me know it is useful.
 
 ## License
 
