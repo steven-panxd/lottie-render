@@ -21,6 +21,8 @@
   "scripts": {
     "dev": "tsx watch src/server/start.ts",
     "build": "tsc",
+    "demo": "npm run build && node examples/render-demo.cjs",
+    "benchmark": "npm run build && node scripts/benchmark.cjs",
     "start": "node dist/server/start.js",
     "test": "vitest run",
     "test:watch": "vitest",
