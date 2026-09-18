@@ -38,3 +38,19 @@ jobs:
 
       - name: Test (unit + real end-to-end renders)
         run: npm test
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production image on native AMD64
+        run: docker build -t lottie-render:ci .
+      - name: Render in a 512 MiB container without network or swap
+        run: |
+          docker run --rm --init --network none --cpus 1 --memory 512m --memory-swap 512m \
+            lottie-render:ci sh -c '
+              node dist/cli.js doctor &&
+              node dist/cli.js render public/sample.json -o /tmp/sample.mp4 --fps 15 &&
+              test "$(ffprobe -v error -select_streams v:0 -count_frames -show_entries stream=nb_read_frames -of csv=p=0 /tmp/sample.mp4)" = 45
+            '
