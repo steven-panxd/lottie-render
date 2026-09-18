@@ -4,13 +4,21 @@
 
 **在 Node.js 后端或自托管 HTTP 服务中，将 Lottie 动画转换为 MP4 视频。**
 
-[English](README.md) · [快速开始](#快速开始) · [HTTP API](docs/http-api.md) · [性能实测](docs/benchmarks.md)
+[English](README.md) · [免安装体验](#免安装体验) · [快速开始](#快速开始) · [HTTP API](docs/http-api.md) · [性能实测](docs/benchmarks.md)
 
 适用于已有 Lottie / bodymovin JSON、需要增加视频导出功能的应用。可以直接调用 Node.js 库，也可以部署一个渲染服务，供 Python、Go 等后端通过 HTTP 调用。
 
 ![仓库自带动画的渲染预览](assets/demo.gif)
 
 上方为 GIF 预览；实际输出为 MP4。[示例输入](assets/demo-animation.json)包含 90 帧，默认输出 400 × 400、30 fps、时长 3 秒的视频。
+
+## 免安装体验
+
+打开 **[lottie.xuedo.ng](https://lottie.xuedo.ng/)**，选择 Lottie JSON 文件或点击 **Try a sample**，预览后点击 **Convert to MP4**，完成后通过 **Download MP4** 下载。预览在浏览器本地进行，点击转换才会上传文件。输出为白色背景、不含音频的 H.264 MP4。
+
+共享 demo 接受素材已内嵌的自包含 JSON：**单文件不超过 2 MiB、动画不超过 10 秒、输出最高 512 px / 30 FPS**。降低帧率时保持原时长，不加载外部素材网址。同时只处理一个转换任务，每 IP 每分钟最多接受 5 次尝试；繁忙或触发限流时请稍后重试。传输结束或任务失败后清理临时文件。
+
+自动化和业务集成请自行部署，不要依赖共享 demo 接口。参见 [demo 配置](docs/demo.md) 和 [在现有 VPS 上部署](docs/vps.md)；后者也包含正式站浏览器 E2E 测试的运行方式。
 
 ## 适合什么场景
 

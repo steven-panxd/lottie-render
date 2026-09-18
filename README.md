@@ -8,13 +8,21 @@
 [![npm version](https://img.shields.io/npm/v/lottie-render.svg)](https://www.npmjs.com/package/lottie-render)
 [![license](https://img.shields.io/npm/l/lottie-render.svg)](LICENSE)
 
-[Quick start](#quick-start) · [Run the demo](#run-the-included-demo) · [HTTP API](docs/http-api.md) · [Benchmarks](docs/benchmarks.md) · [简体中文](README.zh-CN.md)
+[Try online](#try-online-no-installation) · [Quick start](#quick-start) · [Run the demo](#run-the-included-demo) · [HTTP API](docs/http-api.md) · [Benchmarks](docs/benchmarks.md) · [简体中文](README.zh-CN.md)
 
 Turn After Effects / bodymovin JSON into a video you can download, share, or pass to another video-processing step. Call `renderLottie()` from your application, or deploy one renderer for services written in different languages.
 
 ![Preview of the included Lottie animation, rendered with lottie-render](assets/demo.gif)
 
 Try this exact animation with `npm run demo` from a checkout. [Input JSON](assets/demo-animation.json) → `videos/demo.mp4` (400 × 400, 3 seconds, 30 fps). The image above is a GIF preview; the renderer produces MP4.
+
+## Try online — no installation
+
+Open **[lottie.xuedo.ng](https://lottie.xuedo.ng/)**, choose a Lottie JSON file (or **Try a sample**), preview it, then select **Convert to MP4** and **Download MP4**. Previewing stays in your browser; clicking Convert uploads the file to the server. Output is a silent H.264 MP4 with a white background.
+
+The shared demo accepts self-contained JSON with embedded assets: **2 MiB per file, 10 seconds maximum, up to 512 px and 30 FPS**. It preserves the source duration when reducing the frame rate. External asset URLs are blocked. Only one conversion runs at a time, with five admitted attempts per IP per minute; retry later if the service is busy or rate-limited. Temporary files are cleaned up after transfer or failure.
+
+For automation or application integration, run your own instance instead of depending on the shared demo endpoint. See [demo configuration](docs/demo.md) or [deploy on an existing VPS](docs/vps.md). The latter also documents the opt-in live browser E2E check.
 
 ## When to use it
 
