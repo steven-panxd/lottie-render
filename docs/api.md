@@ -1,56 +1,67 @@
 # Library API
 
 ```ts
-function renderLottie(
-  input: LottieJSON | string,
-  options?: RenderOptions
-): Promise<RenderResult>
+const result = await renderLottie('animation.json', {
+  outputPath: 'output.mp4',
+  fps: 30,
+  frameRateMode: 'resample',
+  timeoutMs: 60000,
+  signal: abortController.signal,
+  onProgress: ({ phase, completedFrames, totalFrames }) => {
+    console.log(phase, completedFrames, totalFrames);
+  },
+});
+if (!result.success) throw new Error(result.error);
+console.log(result.videoPath);
 ```
 
-`input` — a parsed Lottie JSON object, or a path to a Lottie JSON file on disk.
-
-`options`:
+`renderLottie(input, options)` accepts a parsed Lottie object or local JSON path. It returns a discriminated `RenderResult`: successful results contain metadata and either a videoPath or videoBuffer; failures contain error and errorCode. The library is quiet by default.
 
 | Option | Default | Description |
 |---|---|---|
-| `width` | the JSON's own width, else 1920 | Output width in px |
-| `height` | the JSON's own height, else 1080 | Output height in px |
-| `fps` | the JSON's own frame rate, else 30 | Output frame rate. The same number of frames is always captured from the source animation (its own `ip`/`op` range); overriding `fps` changes how fast those frames play back, and thus the output's duration, rather than resampling to a different frame count |
-| `backgroundColor` | transparent | CSS background used during capture, e.g. `#ffffff`. The H.264 MP4 output is always opaque; it does not preserve alpha |
-| `quality` | 80 | JPEG quality 0-100 used for intermediate frame capture |
-| `outputPath` | - | Write the final MP4 here instead of returning it in memory. When set, **you own that file** — it isn't deleted. When omitted, the video is written to a temp file, read into memory, and the temp file is deleted automatically |
-| `maxFrames` | 6000 | Reject animations requesting more frames than this |
-| `maxDimension` | 4096 | Reject a resolved width/height larger than this, in px |
-| `headless` | `true` | Set to `false` to watch the capture browser render (debugging) |
+| width / height | source dimensions | Positive even output dimensions, required by H.264 yuv420p |
+| fps | source frame rate | Output fps; see frameRateMode |
+| frameRateMode | speed | `speed`: original behavior, one capture per source frame, changes playback duration. `resample`: captures `ceil(sourceDuration * fps)` frames, preserving duration within one output frame |
+| backgroundColor | transparent | CSS background. MP4 is opaque; specify a color for predictable output |
+| quality | 80 | JPEG capture quality, integer 0-100; zero is valid |
+| outputPath | unset | Write final MP4 to this path, otherwise return videoBuffer |
+| maxFrames | 6000 | Maximum OUTPUT frame count, after resampling |
+| maxDimension | 4096 | Maximum width or height |
+| maxDuration | unset | Maximum SOURCE duration in seconds |
+| timeoutMs | 120000 | Whole-job deadline, including encoding |
+| signal | unset | AbortSignal for cancellation |
+| onProgress | unset | Callback with phase, completedFrames and totalFrames; phases: loading, capture, encoding, complete |
+| logger | unset | Optional completion logger |
+| encodingPreset | medium | medium, fast or veryfast |
+| crf | 21 | H.264 quality, integer 0-51 |
+| threads | 1 | FFmpeg encoder thread count |
+| headless | true | Use false for browser debugging; requires a full Chromium installation |
 
-`RenderResult`:
+The legacy library `fps` behavior is retained. The CLI defaults to resampling (`--legacy-speed` opts out); the public demo always resamples. Invalid inputs and numeric options are rejected before browser launch. The whole-job timeout is new; raise it explicitly for trusted long jobs.
 
-| Field | Description |
+| Result field | Description |
 |---|---|
-| `success` | `boolean` |
-| `videoBuffer` | The rendered MP4 as a `Buffer`, present when `outputPath` was **not** given |
-| `videoPath` | Absolute path to the rendered MP4, present when `outputPath` was given |
-| `metadata` | `{ duration, fps, width, height, name? }` describing the *actual rendered output* (reflecting any `options` overrides), not necessarily the source JSON's own values |
-| `duration` | Wall-clock render time, ms |
-| `error` | Failure reason, present when `success` is `false` |
+| success | true or false; narrows the TypeScript union |
+| videoPath | Absolute path on success when outputPath was supplied; no videoBuffer |
+| videoBuffer | MP4 Buffer on success when outputPath was omitted; no videoPath |
+| metadata | Actual output duration, fps, width, height and optional name |
+| duration | Job elapsed time in milliseconds, excluding final scratch cleanup |
+| error | Failure message |
+| errorCode | INVALID_INPUT, ABORTED, TIMEOUT or RENDER_FAILED |
 
 ## Architecture
 
 ```text
-Lottie object or JSON file
-  → launch Chromium and load the bundled lottie-web player
-  → seek each source frame and capture a JPEG into memory
-  → write captured frames to a temporary directory
-  → encode an H.264 MP4 with FFmpeg
-  → return videoPath or videoBuffer, then remove temporary files
+Lottie JSON -> validate and select frames -> launch Chromium
+  -> capture and write ONE JPEG at a time to scratch disk
+  -> close Chromium -> encode MP4 with FFmpeg
+  -> copy to outputPath or read videoBuffer -> clean scratch files
 ```
 
-An explicit `outputPath` is owned by the caller and is not removed. See the [renderer implementation](../src/renderer/frame-by-frame.ts) for details.
+An explicit outputPath belongs to the caller. Encoding occurs in scratch first, so encoding failure or cancellation before publication leaves an existing destination unchanged. Successful publication replaces it. Temporary frames are removed on success, failure and cancellation. Both screenshot storage and encoder threads are bounded; browser complexity and charged filesystem cache still consume memory.
 
 ## Security note for untrusted input
 
-Lottie JSON can reference external images and fonts. The rendering browser blocks HTTP(S) requests and allows `file://`, `data:` and `blob:` URLs. Remote assets will not load; embed assets and test the result with your actual animations. Request filtering is not a complete isolation boundary for hostile files, especially because local file URLs remain allowed.
+The browser permits only the bundled template, bundled lottie-web script, and embedded data/blob URLs. Arbitrary local files and HTTP(S) assets are blocked. This is not a complete isolation boundary for hostile animation data: use container CPU/memory limits and keep credentials out of the worker. Chromium runs with its sandbox disabled.
 
-`maxFrames` and `maxDimension` reject inputs exceeding the configured limits. They are not a timeout or a memory budget: rendering still buffers captured frames in memory.
-
-[Back to the quick start](../README.md#quick-start)
+[Back to README](../README.md)
