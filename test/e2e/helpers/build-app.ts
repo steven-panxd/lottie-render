@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createApp, errorHandler } from '../../../src/server/app';
-import routes from '../../../src/server/routes';
+import { createRouter } from '../../../src/server/routes';
 
 /**
  * Builds the same Express app used in production (src/server/start.ts),
@@ -17,7 +17,7 @@ export function buildTestApp() {
   }
 
   const app = createApp();
-  app.use('/api', routes);
+  app.use('/api', createRouter());
   app.use(errorHandler);
   return app;
 }

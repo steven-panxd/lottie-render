@@ -49,29 +49,34 @@ describe('POST /api/render (real render)', () => {
     expect(isValidMp4(res.body as Buffer)).toBe(true);
   });
 
-  it('returns 503 when the concurrency limit is already reached', async () => {
+  it('reserves capacity before buffering an unfinished upload', async () => {
     process.env.MAX_CONCURRENT_RENDERS = '1';
-
-    // supertest/superagent requests are lazy: they don't actually send until
-    // awaited, `.then()`-ed, or `.end()`-ed. Use `.end()` so the first
-    // request is genuinely in flight while we fire the second one.
-    const first = new Promise<request.Response>((resolve, reject) => {
-      request(app)
-        .post('/api/render')
-        .attach('file', sampleFixture)
-        .end((err, res) => (err && !res ? reject(err) : resolve(res)));
+    const server = buildTestApp().listen(0);
+    await new Promise<void>(resolve => server.once('listening', resolve));
+    const address = server.address() as { port: number };
+    const first = http.request({ port: address.port, path: '/api/render', method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=held-upload' } });
+    const completed = new Promise<number | undefined>((resolve, reject) => {
+      first.on('response', response => { response.resume(); response.on('end', () => resolve(response.statusCode)); });
+      first.on('error', reject);
     });
-
-    // Give the first request a moment to pass its own concurrency check and
-    // increment the in-flight counter before firing the second.
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    const second = await request(app).post('/api/render').attach('file', sampleFixture);
-    expect(second.status).toBe(503);
-    expect(second.body.error).toMatch(/server is busy/i);
-
-    const firstRes = await first;
-    expect(firstRes.status).toBe(200);
+    try {
+      first.write('--held-upload\r\nContent-Disposition: form-data; name="file"; filename="sample.json"\r\nContent-Type: application/json\r\n\r\n');
+      for (let i = 0; i < 100; i++) {
+        const health = await request(server).get('/api/health');
+        if (health.body.activeRenders === 1) break;
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      expect((await request(server).get('/api/health')).body.activeRenders).toBe(1);
+      const second = await request(server).post('/api/render').attach('file', sampleFixture);
+      expect(second.status).toBe(503);
+      expect(second.headers['retry-after']).toBe('5');
+      first.end((await fs.readFile(sampleFixture, 'utf8')) + '\r\n--held-upload--\r\n');
+      expect(await completed).toBe(200);
+    } finally {
+      first.destroy();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
   });
 
   it('never contacts a remote URL referenced by an untrusted Lottie asset (SSRF protection)', async () => {
