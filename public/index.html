@@ -3,7 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Lottie to MP4 — lottie-render</title>
+  <title>Lottie to MP4 Converter — Free &amp; Open Source | lottie-render</title>
+  <meta name="description" content="Convert Lottie JSON animations to MP4 online for free. Preview locally, render real H.264 video on the server, and download. Open source and self-hostable.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lottie-render">
+  <meta property="og:title" content="Lottie to MP4 Converter — lottie-render">
+  <meta property="og:description" content="Preview a Lottie JSON animation and convert it to a real MP4. Free, open source, and self-hostable.">
+  <meta name="twitter:card" content="summary">
+  <meta name="theme-color" content="#eef1f5">
+  <!-- DISCOVERY -->
   <link rel="stylesheet" href="/demo.css">
   <script src="/demo.js" defer></script>
 </head>
@@ -15,7 +23,7 @@
   <main>
     <div class="intro">
       <h1>Lottie to MP4</h1>
-      <p>A small tool for putting your animations into video.</p>
+      <p>Convert Lottie JSON animations to MP4. Free and open source.</p>
     </div>
     <div class="workspace" id="workspace">
       <section class="viewer" aria-label="Animation preview">
@@ -74,6 +82,41 @@
       <p id="limits">Loading demo limits…</p>
       <p>Preview locally. Convert on the server.<br>Uploaded files are deleted after transfer.</p>
     </div>
+    <section class="about" aria-labelledby="about-heading">
+      <div class="about-summary">
+        <h2 id="about-heading">From Lottie JSON to a video file</h2>
+        <p>lottie-render turns Lottie animations, including Bodymovin exports from After Effects, into downloadable MP4 videos for presentations, video editors, and social posts.</p>
+        <p>Choose a self-contained JSON file, check the local preview, then select <strong>Convert to MP4</strong>. The server renders the frames and encodes a real video. Download it when the conversion finishes.</p>
+        <p>Developers can also use the <a href="https://github.com/steven-panxd/lottie-render#quick-start">Node.js library</a>, <a href="https://github.com/steven-panxd/lottie-render/blob/main/docs/demo.md">CLI and self-hosted demo</a>, or <a href="https://github.com/steven-panxd/lottie-render/blob/main/docs/http-api.md">HTTP API</a>.</p>
+      </div>
+      <div class="questions">
+        <h2>Before you convert</h2>
+        <details open>
+          <summary>What does the free demo support?</summary>
+          <p>Upload a Lottie JSON file up to {{MAX_UPLOAD_MIB}} MiB and {{MAX_DURATION}} seconds long. Output fits within {{MAX_DIMENSION}} × {{MAX_DIMENSION}} pixels, without upscaling, at up to 30 FPS. The demo limits concurrent conversions to {{MAX_CONCURRENT}}; if it is busy, try again later.</p>
+        </details>
+        <details>
+          <summary>Does the video preserve timing and transparency?</summary>
+          <p>Conversion preserves the animation's timing by resampling frames when necessary. H.264 MP4 output has a white background and no audio. It does not preserve transparency.</p>
+        </details>
+        <details>
+          <summary>When is my file uploaded or stored?</summary>
+          <p>The local preview runs in your browser. Your file is uploaded only when you select Convert to MP4. Temporary render files are deleted after the response finishes or the job fails. There is no saved video gallery.</p>
+        </details>
+        <details>
+          <summary>Why might an animation look different?</summary>
+          <p>Use embedded images and self-contained assets. External images and fonts are blocked. The isolated local preview also blocks evaluated expressions, so some animations may preview differently from the server-rendered video. Check the downloaded MP4 before using it.</p>
+        </details>
+        <details>
+          <summary>Can I run it on my own server?</summary>
+          <p>Yes. lottie-render is MIT-licensed, with Docker deployment instructions and configurable size, duration, concurrency, and timeout limits. Self-hosting requires compute resources; hosting providers may charge for them.</p>
+        </details>
+      </div>
+    </section>
+    <footer class="site-footer">
+      <span>Built by <a href="https://www.xuedo.ng/">Steven Pan</a></span>
+      <a href="https://github.com/steven-panxd/lottie-render">Source code &amp; documentation</a>
+    </footer>
   </main>
 </body>
 </html>

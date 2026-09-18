@@ -2,6 +2,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import path from 'path';
 import { getSettings } from './config';
+import { serveDemoPages } from './demo';
 
 export function apiKeyAuth(req: Request, res: Response, next: NextFunction) {
   const apiKey = process.env.API_KEY;
@@ -22,6 +23,7 @@ export function createApp(): Express {
     app.set('trust proxy', hops);
   }
   if (getSettings().demo) {
+    serveDemoPages(app);
     app.get('/vendor/lottie.min.js', (_req, res) => {
       res.sendFile(path.resolve(__dirname, '../../templates/vendor/lottie.min.js'));
     });

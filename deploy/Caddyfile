@@ -1,0 +1,19 @@
+{
+	auto_https disable_redirects
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$DEMO_HOST} {
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
+	request_body {
+		max_size 3MB
+	}
+	encode zstd gzip
+	reverse_proxy demo:3000
+}

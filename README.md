@@ -1,5 +1,7 @@
 # lottie-render
 
+[Live Lottie to MP4 demo](https://lottie.xuedo.ng/) — preview locally, convert on the server, and download a real MP4.
+
 **Convert Lottie animations to MP4 in your Node.js backend or through a self-hosted HTTP API.**
 
 [![CI](https://github.com/steven-panxd/lottie-render/actions/workflows/ci.yml/badge.svg)](https://github.com/steven-panxd/lottie-render/actions/workflows/ci.yml)
