@@ -2,7 +2,7 @@
 
 > Render Lottie (After Effects / bodymovin) animations to MP4 video, frame by frame, using headless Chromium (Playwright) and FFmpeg. Usable as an npm library (`renderLottie()`) or as a self-hosted HTTP service.
 
-Frames are captured deterministically via `goToAndStop`, not sampled off a real-time render loop, so output duration and frame count are exact. The rendering browser blocks HTTP(S) requests, permits file/data/blob URIs, and applies frame-count/dimension caps. These controls do not provide full isolation for hostile inputs. Output is opaque H.264 MP4 without audio; overriding fps changes playback speed rather than resampling. MIT licensed.
+Frames are captured deterministically via `goToAndStop`, not sampled off a real-time render loop, so output duration and frame count are exact. The rendering browser blocks HTTP(S) requests, permits only bundled template/player file URLs and embedded data/blob assets, and applies frame-count/dimension caps. These controls do not provide full isolation for hostile inputs. Output is opaque H.264 MP4 without audio; The library defaults to legacy fps speed changes; opt into frameRateMode: resample to preserve duration. The CLI and public demo use duration-preserving resampling. MIT licensed.
 
 ## Docs
 

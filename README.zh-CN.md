@@ -1,5 +1,7 @@
 # lottie-render
 
+[在线体验：Lottie 转 MP4](https://lottie.xuedo.ng/) — 本地预览、服务器真实转换，直接下载 MP4。
+
 **在 Node.js 后端或自托管 HTTP 服务中，将 Lottie 动画转换为 MP4 视频。**
 
 [English](README.md) · [快速开始](#快速开始) · [HTTP API](docs/http-api.md) · [性能实测](docs/benchmarks.md)
