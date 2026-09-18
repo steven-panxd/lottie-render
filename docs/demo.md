@@ -2,6 +2,10 @@
 
 This preset accepts a visitor's Lottie JSON, runs Chromium and FFmpeg on the server, and returns a real H.264 MP4. It includes an upload page, bundled sample, preview, cancellation and download. It needs no database, Redis, persistent volume or external asset service.
 
+The page opens with a bundled sample. Choose or drop a JSON file to preview it locally, play/pause it, or scrub its timeline. Only **Convert to MP4** sends the file to the server; loading the page and playing the preview consume no render slot. A successful conversion replaces the preview with the actual MP4 and provides a download named after the input file.
+
+Local previews use the bundled Lottie player in a sandboxed iframe. Its content policy blocks network assets and evaluated expressions, so some animations may not preview locally even if server conversion succeeds. Use self-contained JSON with embedded images. The frontend adds no CDN or framework dependency.
+
 ## Run from a checkout
 
 ```bash
