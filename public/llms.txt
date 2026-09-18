@@ -1,0 +1,15 @@
+# lottie-render
+
+> An MIT-licensed Lottie JSON to MP4 converter. Use the browser demo, Node.js library, CLI, or self-hosted HTTP API.
+
+The demo previews JSON locally in a sandboxed browser frame. Only clicking Convert to MP4 uploads the file. Chromium renders frames on the server, and FFmpeg encodes a silent H.264 MP4 with a white background. Demo conversion resamples frames to preserve timing. It does not export alpha transparency or audio. Temporary render files are deleted after transfer or failure.
+
+Upload size, source duration, dimensions, and concurrency are capped. See the demo page or /api/config for this deployment's current limits. Use self-contained JSON with embedded assets. External network assets are blocked; evaluated expressions are also blocked in the local preview. Self-hosting requires Node.js, Playwright's Chromium and FFmpeg, or Docker.
+
+## Documentation
+
+- [Source and quick start](https://github.com/steven-panxd/lottie-render): Project source and usage.
+- [Library API](https://github.com/steven-panxd/lottie-render/blob/main/docs/api.md): Render options and result types.
+- [HTTP API](https://github.com/steven-panxd/lottie-render/blob/main/docs/http-api.md): Upload endpoint and response metadata.
+- [Self-hosting](https://github.com/steven-panxd/lottie-render/blob/main/docs/demo.md): Demo configuration and resource limits.
+- [中文文档](https://github.com/steven-panxd/lottie-render/blob/main/README.zh-CN.md): Chinese quick start.

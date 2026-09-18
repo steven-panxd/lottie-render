@@ -1,0 +1,65 @@
+name: lottie-public-demo
+services:
+  demo:
+    build: .
+    image: ${DEMO_IMAGE:-lottie-render-demo:local}
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      RENDER_PRESET: demo
+      PUBLIC_URL: https://${DEMO_HOST:?Set the demo hostname}
+      MAX_CONCURRENT_RENDERS: "1"
+      MAX_UPLOAD_BYTES: "2097152"
+      MAX_DIMENSION: "512"
+      MAX_FRAMES: "300"
+      MAX_DURATION_SECONDS: "10"
+      RENDER_TIMEOUT_MS: "60000"
+      REQUESTS_PER_MINUTE: "5"
+      TRUST_PROXY_HOPS: "1"
+    init: true
+    restart: unless-stopped
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 1
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [render-internal]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+  https:
+    image: ${CADDY_IMAGE:-caddy:2-alpine}
+    environment:
+      DEMO_HOST: ${DEMO_HOST:?Set the demo hostname}
+    ports:
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificates:/data
+      - caddy-config:/config
+    depends_on:
+      demo:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    networks: [default, render-internal]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+networks:
+  render-internal:
+    internal: true
+  default: {}
+volumes:
+  certificates: {}
+  caddy-config: {}

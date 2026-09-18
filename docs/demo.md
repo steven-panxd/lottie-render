@@ -71,3 +71,13 @@ No image is published merely by checking in the workflow. Until the first succes
 ## Architecture checks
 
 Local ARM64 builds and real renders passed. AMD64 builds also passed locally, but rendering through Docker Desktop's QEMU emulation crashed Chromium's GPU process; this is not a native AMD64 validation. The CI `container-smoke` job runs the production image on native AMD64, with 512 MiB, one CPU, no swap and no network, and verifies a real rendered video's frame count. Check that job before relying on an AMD64 deployment.
+
+## Public VPS deployment and discovery
+
+The hosted demo is at [lottie.xuedo.ng](https://lottie.xuedo.ng/). To host your own copy, see [VPS deployment](vps.md).
+
+Set `PUBLIC_URL=https://your-demo.example.com` to enable the canonical URL, Open Graph URL, and sitemap for your deployment. Only an HTTP(S) origin is accepted. Without this setting, the demo sends a noindex meta tag and a disallow-all robots.txt, so local/private copies do not compete with the public site. API-only mode does not serve these pages. No request Host header is used to generate canonical URLs.
+
+The demo includes server-rendered usage instructions and limits, WebApplication structured data, `/robots.txt`, `/sitemap.xml`, and a concise `/llms.txt` documentation index. The iframe preview is marked noindex. Structured data describes the visible application and does not invent reviews or ratings. These features help crawlers understand the page; they do not guarantee search rankings, rich results, or AI citations. An llms.txt file is an optional documentation aid, not a Google indexing requirement.
+
+After deployment, verify the site in Google Search Console, submit `/sitemap.xml`, and request indexing of the homepage. Add a genuine link to the demo from your project README and portfolio. Search Console verification or sitemap submission requires access to the corresponding account; deploying these files does not submit the site automatically.
