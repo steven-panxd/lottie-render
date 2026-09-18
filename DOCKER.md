@@ -1,6 +1,14 @@
 # Docker Deployment Guide
 
-## Quick start
+## Public live demo
+
+```bash
+docker compose -f compose.demo.yml up --build -d
+```
+
+Open http://localhost:3000 to upload, render, preview and download. This explicit public preset uses one task slot and needs no database or persistent volume. See [demo limits and deployment](docs/demo.md).
+
+## Authenticated API quick start
 
 `docker compose` reads a `.env` file in the same directory and injects those values into the container.
 
@@ -108,7 +116,7 @@ deploy:
       memory: 512M
 ```
 
-Each concurrent render runs its own headless Chromium instance and buffers captured frames in memory. Measure representative animations with the full process tree before setting `MAX_CONCURRENT_RENDERS` and container memory limits; the [sample benchmark](docs/benchmarks.md) does not measure total render memory.
+Each render writes JPEGs sequentially to scratch disk, then closes Chromium before starting FFmpeg. Measure representative animations with the full process tree before setting `MAX_CONCURRENT_RENDERS` and container memory limits; the [sample benchmark](docs/benchmarks.md) does not measure total render memory.
 
 ## Troubleshooting
 
@@ -119,7 +127,7 @@ docker compose config   # confirm env vars resolved as expected
 lsof -i :3000            # check for a port conflict
 ```
 
-**Playwright/Chromium issues** — the image already installs all required system libraries and the Chromium binary at build time. To debug interactively:
+**Playwright/Chromium issues** — the image already installs all required system libraries and the Chromium headless shell at build time (headed mode is not included). To debug interactively:
 ```bash
 docker compose exec lottie-service bash
 npx playwright install chromium
@@ -135,5 +143,9 @@ docker compose exec lottie-service ffmpeg -version
 ## Security
 
 - Generate a strong API key: `openssl rand -hex 32`
-- Don't expose this service directly to the public internet without a reverse proxy — there is no built-in rate limiting beyond the concurrency counter
+- Normal API mode requires a secret in production. Demo mode has bounded uploads, render deadlines and per-IP limits; see the demo guide before configuring proxy trust.
 - Keep the base Node.js image and dependencies up to date
+
+## Images
+
+The final image excludes development dependencies and installs only the Chromium headless shell. The manual [Container image workflow](.github/workflows/container.yml) validates amd64/arm64 builds and optionally publishes GHCR images. No public image is assumed to exist before a successful publish.

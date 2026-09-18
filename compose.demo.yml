@@ -1,0 +1,21 @@
+services:
+  demo:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      RENDER_PRESET: demo
+      MAX_CONCURRENT_RENDERS: "1"
+      MAX_UPLOAD_BYTES: "2097152"
+      MAX_DIMENSION: "512"
+      MAX_FRAMES: "300"
+      MAX_DURATION_SECONDS: "10"
+      RENDER_TIMEOUT_MS: "60000"
+    init: true
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1
+    pids_limit: 128
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]

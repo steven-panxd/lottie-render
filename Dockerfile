@@ -13,13 +13,17 @@ COPY package*.json ./
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 # Install dependencies
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # Copy source code
 COPY . .
 
 # Build TypeScript
 RUN npm run build
+
+# Keep development tools out of the runtime image.
+FROM builder AS production-deps
+RUN npm prune --omit=dev --ignore-scripts
 
 # Stage 2: Production
 FROM node:20-bookworm-slim
@@ -57,10 +61,8 @@ RUN useradd -m -u 1001 appuser && \
     chown -R appuser:appuser /app
 
 # Copy built application from builder
-COPY --from=builder --chown=appuser:appuser /app/dist ./dist
-COPY --from=builder --chown=appuser:appuser /app/node_modules ./node_modules
+COPY --from=production-deps --chown=appuser:appuser /app/node_modules ./node_modules
 COPY --from=builder --chown=appuser:appuser /app/package.json ./
-COPY --chown=appuser:appuser templates ./templates
 
 # Create necessary directories
 RUN mkdir -p videos logs && \
@@ -70,7 +72,12 @@ RUN mkdir -p videos logs && \
 USER appuser
 
 # Install Playwright Chromium
-RUN npx playwright install chromium
+RUN npx playwright install --only-shell chromium
+
+# Copy application files after browser installation so code-only changes reuse it.
+COPY --from=builder --chown=appuser:appuser /app/dist ./dist
+COPY --chown=appuser:appuser templates ./templates
+COPY --chown=appuser:appuser public ./public
 
 # Expose port
 EXPOSE 3000
