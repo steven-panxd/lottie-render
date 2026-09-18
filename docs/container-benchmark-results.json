@@ -1,0 +1,362 @@
+{
+  "baseline": {
+    "measuredAt": "2026-09-18T00:01:15.656Z",
+    "imageId": "sha256:d681840c65398cb3240bac6d4749b8ad42a6278587377d143fcd3bbc25aefde9",
+    "method": "One run per case; 1 CPU, swap disabled, cgroup v2 memory.peak includes all child processes and charged filesystem cache. Docker Desktop Linux arm64. Cold browser per job; no container network.",
+    "reports": [
+      {
+        "image": "lottie-render:baseline",
+        "memory": "512m",
+        "input": "sample.json",
+        "resample": false,
+        "exitCode": 0,
+        "wallMs": 8966,
+        "oomKilled": false,
+        "success": true,
+        "renderMs": 4614,
+        "metadata": {
+          "duration": 3,
+          "fps": 30,
+          "width": 400,
+          "height": 400,
+          "name": "lottie-render demo"
+        },
+        "cgroupPeakBytes": 151994368,
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "video": {
+          "codec_name": "h264",
+          "width": 400,
+          "height": 400,
+          "duration": "3.000000",
+          "nb_read_frames": "90"
+        }
+      },
+      {
+        "image": "lottie-render:baseline",
+        "memory": "512m",
+        "input": "long.json",
+        "resample": false,
+        "exitCode": 0,
+        "wallMs": 22983,
+        "oomKilled": false,
+        "success": true,
+        "renderMs": 22413,
+        "metadata": {
+          "duration": 10,
+          "fps": 60,
+          "width": 512,
+          "height": 512,
+          "name": "lottie-render demo"
+        },
+        "cgroupPeakBytes": 211415040,
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "video": {
+          "codec_name": "h264",
+          "width": 512,
+          "height": 512,
+          "duration": "10.000000",
+          "nb_read_frames": "600"
+        }
+      },
+      {
+        "image": "lottie-render:baseline",
+        "memory": "1g",
+        "input": "sample.json",
+        "resample": false,
+        "exitCode": 0,
+        "wallMs": 3869,
+        "oomKilled": false,
+        "success": true,
+        "renderMs": 3393,
+        "metadata": {
+          "duration": 3,
+          "fps": 30,
+          "width": 400,
+          "height": 400,
+          "name": "lottie-render demo"
+        },
+        "cgroupPeakBytes": 160026624,
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "video": {
+          "codec_name": "h264",
+          "width": 400,
+          "height": 400,
+          "duration": "3.000000",
+          "nb_read_frames": "90"
+        }
+      },
+      {
+        "image": "lottie-render:baseline",
+        "memory": "1g",
+        "input": "long.json",
+        "resample": false,
+        "exitCode": 0,
+        "wallMs": 21366,
+        "oomKilled": false,
+        "success": true,
+        "renderMs": 20798,
+        "metadata": {
+          "duration": 10,
+          "fps": 60,
+          "width": 512,
+          "height": 512,
+          "name": "lottie-render demo"
+        },
+        "cgroupPeakBytes": 225710080,
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "video": {
+          "codec_name": "h264",
+          "width": 512,
+          "height": 512,
+          "duration": "10.000000",
+          "nb_read_frames": "600"
+        }
+      }
+    ]
+  },
+  "updated": {
+    "measuredAt": "2026-09-18T00:02:36.035Z",
+    "imageId": "sha256:32aa1b3852bca1142d6a3c36ccad680df15274fc504f397c5e6a12bb9c48af31",
+    "method": "One run per case; 1 CPU, swap disabled, cgroup v2 memory.peak includes all child processes and charged filesystem cache. Docker Desktop Linux arm64. Cold browser per job; no container network.",
+    "reports": [
+      {
+        "image": "lottie-render:lean",
+        "memory": "512m",
+        "input": "sample.json",
+        "resample": false,
+        "exitCode": 0,
+        "wallMs": 2485,
+        "oomKilled": false,
+        "success": true,
+        "renderMs": 2027,
+        "metadata": {
+          "duration": 3,
+          "fps": 30,
+          "width": 400,
+          "height": 400,
+          "name": "lottie-render demo"
+        },
+        "cgroupPeakBytes": 153923584,
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "video": {
+          "codec_name": "h264",
+          "width": 400,
+          "height": 400,
+          "duration": "3.000000",
+          "nb_read_frames": "90"
+        }
+      },
+      {
+        "image": "lottie-render:lean",
+        "memory": "512m",
+        "input": "sample.json",
+        "resample": true,
+        "exitCode": 0,
+        "wallMs": 3936,
+        "oomKilled": false,
+        "success": true,
+        "renderMs": 3503,
+        "metadata": {
+          "duration": 3,
+          "fps": 30,
+          "width": 400,
+          "height": 400,
+          "name": "lottie-render demo"
+        },
+        "cgroupPeakBytes": 151896064,
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "video": {
+          "codec_name": "h264",
+          "width": 400,
+          "height": 400,
+          "duration": "3.000000",
+          "nb_read_frames": "90"
+        }
+      },
+      {
+        "image": "lottie-render:lean",
+        "memory": "512m",
+        "input": "long.json",
+        "resample": false,
+        "exitCode": 0,
+        "wallMs": 21479,
+        "oomKilled": false,
+        "success": true,
+        "renderMs": 21014,
+        "metadata": {
+          "duration": 10,
+          "fps": 60,
+          "width": 512,
+          "height": 512,
+          "name": "lottie-render demo"
+        },
+        "cgroupPeakBytes": 180785152,
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "video": {
+          "codec_name": "h264",
+          "width": 512,
+          "height": 512,
+          "duration": "10.000000",
+          "nb_read_frames": "600"
+        }
+      },
+      {
+        "image": "lottie-render:lean",
+        "memory": "512m",
+        "input": "long.json",
+        "resample": true,
+        "exitCode": 0,
+        "wallMs": 11135,
+        "oomKilled": false,
+        "success": true,
+        "renderMs": 10702,
+        "metadata": {
+          "duration": 10,
+          "fps": 30,
+          "width": 512,
+          "height": 512,
+          "name": "lottie-render demo"
+        },
+        "cgroupPeakBytes": 170160128,
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "video": {
+          "codec_name": "h264",
+          "width": 512,
+          "height": 512,
+          "duration": "10.000000",
+          "nb_read_frames": "300"
+        }
+      },
+      {
+        "image": "lottie-render:lean",
+        "memory": "1g",
+        "input": "sample.json",
+        "resample": false,
+        "exitCode": 0,
+        "wallMs": 3967,
+        "oomKilled": false,
+        "success": true,
+        "renderMs": 3515,
+        "metadata": {
+          "duration": 3,
+          "fps": 30,
+          "width": 400,
+          "height": 400,
+          "name": "lottie-render demo"
+        },
+        "cgroupPeakBytes": 159510528,
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "video": {
+          "codec_name": "h264",
+          "width": 400,
+          "height": 400,
+          "duration": "3.000000",
+          "nb_read_frames": "90"
+        }
+      },
+      {
+        "image": "lottie-render:lean",
+        "memory": "1g",
+        "input": "sample.json",
+        "resample": true,
+        "exitCode": 0,
+        "wallMs": 4006,
+        "oomKilled": false,
+        "success": true,
+        "renderMs": 3538,
+        "metadata": {
+          "duration": 3,
+          "fps": 30,
+          "width": 400,
+          "height": 400,
+          "name": "lottie-render demo"
+        },
+        "cgroupPeakBytes": 161820672,
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "video": {
+          "codec_name": "h264",
+          "width": 400,
+          "height": 400,
+          "duration": "3.000000",
+          "nb_read_frames": "90"
+        }
+      },
+      {
+        "image": "lottie-render:lean",
+        "memory": "1g",
+        "input": "long.json",
+        "resample": false,
+        "exitCode": 0,
+        "wallMs": 21487,
+        "oomKilled": false,
+        "success": true,
+        "renderMs": 21034,
+        "metadata": {
+          "duration": 10,
+          "fps": 60,
+          "width": 512,
+          "height": 512,
+          "name": "lottie-render demo"
+        },
+        "cgroupPeakBytes": 189939712,
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "video": {
+          "codec_name": "h264",
+          "width": 512,
+          "height": 512,
+          "duration": "10.000000",
+          "nb_read_frames": "600"
+        }
+      },
+      {
+        "image": "lottie-render:lean",
+        "memory": "1g",
+        "input": "long.json",
+        "resample": true,
+        "exitCode": 0,
+        "wallMs": 9553,
+        "oomKilled": false,
+        "success": true,
+        "renderMs": 9139,
+        "metadata": {
+          "duration": 10,
+          "fps": 30,
+          "width": 512,
+          "height": 512,
+          "name": "lottie-render demo"
+        },
+        "cgroupPeakBytes": 174432256,
+        "memoryEvents": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\n",
+        "video": {
+          "codec_name": "h264",
+          "width": 512,
+          "height": 512,
+          "duration": "10.000000",
+          "nb_read_frames": "300"
+        }
+      }
+    ]
+  },
+  "imageSizeBytes": {
+    "baseline": 662898336,
+    "updated": 434872183
+  },
+  "httpDemo": {
+    "memoryLimitMiB": 512,
+    "cpuLimit": 1,
+    "swap": false,
+    "input": "long.json",
+    "peakBytes": 163713024,
+    "outputFrames": 300,
+    "durationSeconds": 10,
+    "width": 512,
+    "height": 512,
+    "oomEvents": 0
+  },
+  "visualComparison": {
+    "input": "sample.json",
+    "baselineAndUpdatedMode": "source fps, CRF 21, medium",
+    "ssim": 0.996182,
+    "note": "Different encoder thread settings; not bit-identical output."
+  }
+}

@@ -94,7 +94,19 @@ To render your own file through the same example:
 npm run demo -- samples/animation.json videos/animation.mp4
 ```
 
-This is a repository example; the npm package does not currently install a CLI.
+The package now includes a CLI. In a built checkout:
+
+```bash
+node dist/cli.js doctor
+node dist/cli.js render assets/demo-animation.json -o output.mp4 --fps 15
+npm run serve:demo
+```
+
+The last command starts a real upload, server render and MP4 download page at http://localhost:3000. Alternatively, run `docker compose -f compose.demo.yml up --build`. See [demo deployment and limits](docs/demo.md).
+
+After installing a package release containing these changes, use `npx lottie-render doctor`, `npx lottie-render render animation.json -o output.mp4`, or `npx lottie-render serve --preset demo`. Before that release, use the checkout commands above.
+
+For library-only use, `npm install lottie-render --omit=optional` skips the HTTP server dependencies. Default installation includes them so `serve` works immediately. Rendering still requires Chromium and FFmpeg.
 
 ## API
 
@@ -102,7 +114,7 @@ This is a repository example; the npm package does not currently install a CLI.
 
 [Full options and return values](docs/api.md) · [TypeScript types](src/types/index.ts)
 
-**Frame-rate behavior:** overriding `fps` changes playback speed and duration; it does not resample frames to preserve the original duration.
+**Frame-rate behavior:** library calls retain the original speed-changing behavior by default. Set `frameRateMode: 'resample'` to preserve source duration when changing fps (rounded up to a whole output frame). The CLI and demo resample by default.
 
 ## Run as an HTTP service
 
@@ -133,7 +145,7 @@ The response body is the MP4; errors are JSON. `--fail-with-body` makes HTTP err
 
 See [measured results and reproduction steps](docs/benchmarks.md) for the included animation at 400 × 400 and 1080 × 1080. Run `npm run benchmark` in a checkout to measure your machine (requires `ffprobe`, normally included with FFmpeg).
 
-Rendering time depends on frame count, resolution, animation complexity and hardware. Each render starts its own Chromium instance and buffers captured JPEG frames in memory. Measure representative files before choosing concurrency or container memory limits.
+Rendering time depends on frame count, resolution, animation complexity and hardware. Each render writes JPEGs one at a time to temporary disk and closes Chromium before encoding. Measure representative files before choosing concurrency or container memory limits.
 
 ## Limitations
 
@@ -141,14 +153,14 @@ Rendering time depends on frame count, resolution, animation complexity and hard
 - **Self-contained assets work best.** HTTP(S) image and font requests are blocked; embed assets and verify your actual animations. Text rendering depends on the glyphs or fonts available to the player. This repo does not certify every Lottie feature or export.
 - **Use even pixel dimensions.** The H.264 encoder uses `yuv420p`, which requires even width and height.
 - **No queue or cross-instance concurrency coordination.** Server limits are per process. Use your own queue for batch jobs.
-- **Capture buffers consume memory.** Long or large animations need more memory. Default caps are 6,000 frames and 4,096 pixels per dimension.
-- The library package also installs the optional server's Express/Multer dependencies.
+- **Temporary disk is required.** Default caps are 6,000 output frames, 4,096 pixels per dimension and a 120-second job deadline. Browser state and filesystem cache still consume memory.
+- Library-only installations can omit HTTP dependencies with `--omit=optional`.
 
 ## Security
 
-The rendering browser blocks outbound HTTP(S) requests, and the library applies frame-count and dimension caps. These controls are not a complete isolation boundary for hostile files; local `file://` URLs remain allowed. Run untrusted jobs in an appropriately isolated environment.
+The rendering browser permits only bundled local player files and embedded data/blob assets. The library validates inputs and supports deadlines and cancellation. These controls are not a complete isolation boundary for hostile files. Run untrusted jobs in an appropriately isolated environment.
 
-The HTTP service requires an API key in production and refuses to start without one. For a public deployment, add a gateway with rate limits. See [library behavior](docs/api.md#security-note-for-untrusted-input) and [server configuration](docs/http-api.md#security).
+Normal HTTP service mode requires an API key in production. The explicit `demo` preset permits public access with upload, concurrency and per-IP limits. See [library behavior](docs/api.md#security-note-for-untrusted-input) and [server configuration](docs/http-api.md#security).
 
 ## Development and feedback
 

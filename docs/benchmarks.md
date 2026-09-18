@@ -1,5 +1,33 @@
 # Rendering benchmark
 
+## Low-memory implementation (2026-09-17)
+
+Docker Desktop Linux arm64, one CPU, swap disabled. Peak is cgroup v2 `memory.peak`, including Node, Chromium, FFmpeg and charged filesystem cache. One run per case; timing is not a statistical throughput guarantee. These runs compare main commit `75ddefe` with the implementation in this change. Raw reports include immutable local image IDs.
+
+| 512 MiB container, constructed 10s animation | Output frames | Render time | Peak memory |
+|---|---:|---:|---:|
+| Previous implementation, 60 fps | 600 | 22.413s | 201.6 MiB |
+| Sequential disk capture, 60 fps | 600 | 21.014s | 172.4 MiB |
+| Sequential disk capture + resample to 30 fps | 300 | 10.702s | 162.3 MiB |
+
+All cases also passed at 1 GiB without OOM events. The included 3-second animation passed both memory limits. The longer fixture extends the bundled two-shape animation to 600 source frames; it is not a complex production animation. A full HTTP demo render of that fixture also passed at 512 MiB (peak 156.1 MiB, 300 frames, 10 seconds), using the demo's veryfast/CRF 25 encoder settings.
+
+Local arm64 image size: 662.9 MB before, 434.9 MB after (uncompressed Docker image size, about 34% smaller; registry transfer sizes differ). A decoded-frame comparison on the 3-second fixture gave SSIM 0.996182; output is not bit-identical because encoder threading changed.
+
+[Raw container measurements](container-benchmark-results.json)
+
+Reproduce after building local baseline and updated images:
+
+```bash
+node scripts/benchmark-container.cjs lottie-render:baseline videos/container-benchmark
+node scripts/benchmark-container.cjs lottie-render:lean videos/container-benchmark
+```
+
+The script limits CPU/memory, disables swap/networking, verifies outputs with ffprobe, captures memory events and removes each test container. It requires Docker and available image tags. CPU contention from other host workloads can affect timings. Measure your own representative files before deploying; 512 MiB is demonstrated for these fixtures, not guaranteed for every accepted JSON.
+
+## Historical benchmark (before this change)
+
+
 Measured on 2026-09-17 using the included [demo animation](../assets/demo-animation.json): two shape layers, 90 frames, 30 fps, 3 seconds. This is a small, self-contained example, not a compatibility suite or a throughput guarantee for production files.
 
 ## Results
