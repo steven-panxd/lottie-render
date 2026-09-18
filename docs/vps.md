@@ -52,3 +52,13 @@ docker compose -f compose.vps.yml logs --tail 50
 Upload size is capped at 2 MiB, source duration at 10 seconds, output at 512 pixels and 30 FPS, and simultaneous conversion at one. Requests are limited to five attempts per IP per minute. Caddy allows up to 3 MB for multipart overhead; the application enforces the smaller file limit. Uploaded files are temporary and there is no public result directory.
 
 To roll back, set `DEMO_IMAGE` to the previous tag and run `docker compose -f compose.vps.yml up -d --no-build demo`. Keep old image tags until a replacement has been verified. Avoid `down -v`: it deletes the certificate volume. Stop only this Compose project when retiring the demo.
+
+## Run the browser E2E check
+
+From a development checkout with dependencies, Chromium and `ffprobe` installed:
+
+```bash
+node scripts/test-live-demo.cjs https://your-demo.example /tmp/lottie-live-e2e
+```
+
+Run against a demo with the default limits above, after at least one minute without render requests from your IP. This opt-in check submits real conversions, cancels a job, deliberately triggers concurrency and rate limits, and waits for the rate window before retrying. Allow about two minutes and avoid other conversions during the check. It saves desktop/mobile screenshots, a downloaded MP4, its `ffprobe` metadata and a JSON report. Browser coverage is Chromium with desktop and mobile viewport sizes, not physical-device or cross-browser certification.
