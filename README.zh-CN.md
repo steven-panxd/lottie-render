@@ -88,7 +88,26 @@ npm run demo
 npm run demo -- samples/animation.json videos/animation.mp4
 ```
 
-这是仓库内的示例命令，npm 包目前不提供全局 CLI。
+代码现在提供 CLI 和真实在线演示页面。在仓库里运行：
+
+```bash
+npm run build
+node dist/cli.js doctor
+node dist/cli.js render assets/demo-animation.json -o output.mp4 --fps 15
+npm run serve:demo
+```
+
+打开 http://localhost:3000，即可上传 JSON、在服务端真实渲染、预览并下载 MP4。Docker 一条命令：
+
+```bash
+docker compose -f compose.demo.yml up --build -d
+```
+
+Demo 默认限制并发 1、上传 2 MiB、源时长 10 秒、最大 512 像素、30 fps、300 个输出帧、60 秒渲染超时；无需数据库和 Redis。[完整部署说明](docs/demo.md)。
+
+包含这些改动的新 npm 版本发布后，可以使用 `npx lottie-render doctor`、`npx lottie-render render animation.json -o output.mp4` 和 `npx lottie-render serve --preset demo`。发布前请使用上面的仓库命令。
+
+只使用库时，可通过 `npm install lottie-render --omit=optional` 跳过 HTTP 服务依赖；普通安装包含这些依赖，方便直接运行服务。
 
 ## 作为 HTTP 服务运行
 
@@ -120,13 +139,13 @@ curl --fail-with-body http://localhost:3000/api/render \
 [性能实测](docs/benchmarks.md)包含机器配置、原始结果和复现方法。仓库内执行 `npm run benchmark` 可测量自己的机器，需要 `ffprobe`（通常随 FFmpeg 安装）。简单样例的结果不代表复杂动画的性能。
 
 - **没有透明视频和音频输出。** `backgroundColor: 'transparent'` 不会保留透明通道，建议明确指定背景色。
-- **修改 fps 会改变播放速度和时长。** 当前实现不通过补帧或丢帧来保持原始时长。
+- **库默认保留旧的 fps 行为。** 设置 `frameRateMode: 'resample'` 会保持源时长并重新采样，时长向上取整到完整输出帧。CLI 和 Demo 默认使用此模式。
 - **宽高使用偶数像素。** 当前 H.264 编码使用 `yuv420p`。
 - **远程图片、字体不会自动下载。** 请内嵌素材，并检查实际导出效果；文字效果取决于播放器可用的字形或字体。
-- **每次渲染启动一个 Chromium，并在内存中缓存截图。** 大尺寸、长动画会增加内存需求。默认上限为 6,000 帧、单边 4,096 像素。
+- **截图逐帧写入临时磁盘，关闭 Chromium 后再编码。** 默认上限为 6,000 个输出帧、单边 4,096 像素，整个任务超时 120 秒；支持取消和进度回调。复杂动画及文件缓存仍会占用内存。
 - **服务并发限制仅在单进程内生效。** 批量任务、跨实例调度需要自行接入队列。
 
-生产环境必须配置 API key。网络请求过滤和资源上限不等于完整的安全隔离，渲染器仍允许本地 `file://` URL；详见[安全说明](README.md#security)。
+普通生产 API 模式必须配置 API key；显式开启 `RENDER_PRESET=demo` 才允许匿名访问并启用 Demo 限制。浏览器只允许播放器自带的本地文件和内嵌素材；这些措施不等于完整隔离，详见[安全说明](README.md#security)。
 
 ## 开发与反馈
 

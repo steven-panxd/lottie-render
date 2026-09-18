@@ -98,6 +98,18 @@ describe('package installation (npm pack -> npm install -> require)', () => {
     expect(newEntries).toEqual([]);
   }, 60_000);
 
+  it('installs a working CLI and includes the demo assets', async () => {
+    const cli = path.join(consumerDir, 'node_modules', '.bin', 'lottie-render');
+    const output = path.join(consumerDir, 'cli.mp4');
+    const { stdout } = await execAsync(`"${cli}" doctor`, { cwd: consumerDir });
+    expect(stdout).toContain('OK: Chromium launches');
+    await execAsync(`"${cli}" render "${SAMPLE_FIXTURE}" -o "${output}" --fps 5`, { cwd: consumerDir });
+    expect((await fs.readFile(output)).toString('ascii', 4, 8)).toBe('ftyp');
+    const html = await fs.readFile(path.join(consumerDir, 'node_modules/lottie-render/public/index.html'), 'utf8');
+    expect(html).toContain('Convert to MP4');
+    await fs.rm(output);
+  });
+
   it('exposes correct, usable TypeScript type declarations', async () => {
     // A plain `require` test proves the JS works, but says nothing about
     // whether dist/index.d.ts actually type-checks for a TS consumer — a
@@ -130,4 +142,12 @@ describe('package installation (npm pack -> npm install -> require)', () => {
       await fs.rm(consumerScriptPath, { force: true });
     }
   }, 60_000);
+  it('supports a library-only installation without HTTP dependencies', async () => {
+    await execAsync('npm prune --omit=optional --ignore-scripts --no-audit --no-fund', { cwd: consumerDir });
+    await expect(fs.access(path.join(consumerDir, 'node_modules/express'))).rejects.toThrow();
+    const runner = path.join(consumerDir, 'run.js');
+    await execAsync(`node "${runner}"`, { cwd: consumerDir });
+    const result = JSON.parse(await fs.readFile(path.join(consumerDir, 'result.json'), 'utf8'));
+    expect(result.isMp4).toBe(true);
+  });
 });

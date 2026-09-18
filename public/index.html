@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lottie to MP4 — lottie-render</title>
+  <link rel="stylesheet" href="/demo.css">
+  <script src="/demo.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="wordmark" href="/" aria-label="lottie-render home">lottie<span class="wordmark-separator">/</span>render</a>
+    <a class="source-link" href="https://github.com/steven-panxd/lottie-render">View on GitHub <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 5h9v9M15 5 5 15"/></svg></a>
+  </header>
+  <main>
+    <div class="intro">
+      <h1>Lottie to MP4</h1>
+      <p>A small tool for putting your animations into video.</p>
+    </div>
+    <div class="workspace" id="workspace">
+      <section class="viewer" aria-label="Animation preview">
+        <div class="viewer-header">
+          <span class="file-title"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2h7l4 4v12H5zM12 2v5h4"/></svg><span id="filename">Loading sample…</span></span>
+          <span id="preview-type">Lottie preview</span>
+        </div>
+        <div class="stage" id="preview" aria-busy="false">
+          <div class="artboard" id="artboard">
+            <iframe id="animation" src="/preview.html" title="Lottie animation" sandbox="allow-scripts" tabindex="-1"></iframe>
+            <video id="video" playsinline preload="auto" hidden aria-label="Converted MP4"></video>
+          </div>
+          <div class="rendering" id="rendering" hidden><span class="spinner" aria-hidden="true"></span>Converting to MP4…</div>
+          <div class="drop-overlay" id="drop-overlay" hidden>Drop your Lottie JSON here</div>
+        </div>
+        <div class="playback">
+          <button id="play" class="play-button" type="button" aria-label="Play animation" disabled>
+            <svg id="play-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 9 6-9 6z"/></svg>
+            <svg id="pause-icon" viewBox="0 0 20 20" aria-hidden="true" hidden><path d="M6 4v12M13 4v12"/></svg>
+          </button>
+          <input id="seek" type="range" min="0" max="1" step="0.001" value="0" aria-label="Animation progress" disabled>
+          <span id="time">0.0 / 0.0s</span>
+        </div>
+      </section>
+      <form id="form" class="export-panel">
+        <div class="file-section">
+          <h2>Your animation</h2>
+          <label class="file-picker" id="file-picker">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M5 15v5h14v-5"/></svg>
+            <span>Choose a JSON file</span>
+            <input id="file" type="file" accept=".json,application/json" aria-label="Choose a JSON file" aria-describedby="upload-hint">
+          </label>
+          <p class="hint" id="upload-hint">Or drop it onto the preview.</p>
+          <button class="text-button" id="sample" type="button" disabled>Try a sample</button>
+        </div>
+        <div class="settings-section">
+          <h2>Video output</h2>
+          <dl class="specs">
+            <div><dt>Format</dt><dd>MP4 <span class="secondary">/ H.264</span></dd></div>
+            <div><dt>Dimensions</dt><dd id="dimensions">—</dd></div>
+            <div><dt>Frame rate</dt><dd id="fps">—</dd></div>
+            <div><dt>Background</dt><dd><span class="color-swatch"></span>White</dd></div>
+          </dl>
+          <p class="hint output-hint">Silent video. Timing stays the same.</p>
+          <label class="key" id="key-label" hidden>API key<input id="key" type="password" autocomplete="off"></label>
+        </div>
+        <div class="export-actions">
+          <button id="render" class="primary-button" type="submit" disabled>Convert to MP4</button>
+          <a id="download" class="primary-button" download="lottie.mp4" hidden>Download MP4 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 14v3h12v-3"/></svg></a>
+          <button id="cancel" class="text-button" type="button" hidden>Cancel conversion</button>
+          <p id="status" role="status" aria-live="polite">Loading the demo…</p>
+        </div>
+      </form>
+    </div>
+    <div class="notes">
+      <p id="limits">Loading demo limits…</p>
+      <p>Preview locally. Convert on the server.<br>Uploaded files are deleted after transfer.</p>
+    </div>
+  </main>
+</body>
+</html>

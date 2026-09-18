@@ -1,207 +1,134 @@
 import { randomUUID } from 'crypto';
-import { Request, Response, Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import multer from 'multer';
 import fs from 'fs/promises';
+import os from 'os';
 import path from 'path';
 import { renderLottie } from '../renderer/frame-by-frame';
 import { RenderOptions } from '../types';
-import { apiKeyAuth, upload } from './app';
+import { apiKeyAuth } from './app';
+import { getSettings } from './config';
 
-const router = Router();
+/** Each service instance owns its own admission counter. Run one replica for a global limit of one. */
+export function createRouter(): Router {
+  const router = Router();
+  let active = 0;
+  const clients = new Map<string, { count: number; reset: number }>();
+  const states = new WeakMap<Request, { release: () => void; controller: AbortController; rendering: boolean }>();
 
-// Concurrency control
-let activeRenders = 0;
-function getMaxConcurrentRenders(): number {
-  return process.env.MAX_CONCURRENT_RENDERS
-    ? parseInt(process.env.MAX_CONCURRENT_RENDERS)
-    : 5;
-}
-
-function getMaxDimension(): number {
-  return process.env.MAX_DIMENSION ? parseInt(process.env.MAX_DIMENSION) : 4096;
-}
-
-function getMaxFrames(): number | undefined {
-  return process.env.MAX_FRAMES ? parseInt(process.env.MAX_FRAMES) : undefined;
-}
-
-/**
- * POST /api/render
- * Submit a Lottie render job.
- *
- * Requires a multipart/form-data upload with the Lottie JSON file plus
- * optional render parameters. Responds with the rendered MP4 as the
- * response body; render metadata is returned in response headers.
- */
-router.post(
-  '/render',
-  apiKeyAuth,
-  upload.single('file'),
-  async (req: Request, res: Response) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          error:
-            'No file uploaded. Please upload a Lottie JSON file with key "file"',
-        });
-      }
-
-      const maxConcurrentRenders = getMaxConcurrentRenders();
-      if (activeRenders >= maxConcurrentRenders) {
-        return res.status(503).json({
-          success: false,
-          error: `Server is busy. Maximum ${maxConcurrentRenders} concurrent renders allowed. Please retry later.`,
-          activeRenders,
-          maxConcurrent: maxConcurrentRenders,
-        });
-      }
-
-      // Parse the Lottie JSON
-      let lottieJson;
-      try {
-        lottieJson = JSON.parse(req.file.buffer.toString('utf-8'));
-      } catch (error) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid JSON file',
-        });
-      }
-
-      const maxDimension = getMaxDimension();
-
-      // Parse render options (from form fields)
-      const options: RenderOptions = {
-        width: req.body.width ? parseInt(req.body.width) : undefined,
-        height: req.body.height ? parseInt(req.body.height) : undefined,
-        fps: req.body.fps ? parseInt(req.body.fps) : undefined,
-        backgroundColor: req.body.backgroundColor || undefined,
-        quality: req.body.quality ? parseInt(req.body.quality) : undefined,
-        maxFrames: getMaxFrames(),
-        maxDimension,
-      };
-
-      for (const [key, value] of [
-        ['width', options.width],
-        ['height', options.height],
-      ] as const) {
-        if (value !== undefined && (!Number.isFinite(value) || value <= 0 || value > maxDimension)) {
-          return res.status(400).json({
-            success: false,
-            error: `Invalid ${key}: must be a positive number no greater than ${maxDimension}`,
-          });
-        }
-      }
-
-      const taskId = randomUUID();
-      console.log(`📥 Received render task: ${taskId}`);
-
-      activeRenders++;
-      console.log(`🔢 Active renders: ${activeRenders}/${maxConcurrentRenders}`);
-
-      // Tracks whether the sendFile callback will decrement the counter
-      let decrementInCallback = false;
-
-      try {
-        console.log(`🎬 Starting render for task: ${taskId}`);
-        const startTime = Date.now();
-
-        const outputPath = path.join(process.cwd(), 'videos', `lottie-${taskId}.mp4`);
-        const result = await renderLottie(lottieJson, { ...options, outputPath });
-
-        const renderTime = Date.now() - startTime;
-
-        if (!result.success) {
-          console.error(`❌ Render failed for task ${taskId}:`, result.error);
-          return res.status(500).json({
-            success: false,
-            taskId,
-            error: result.error,
-          });
-        }
-
-        console.log(`✅ Render completed for task ${taskId} in ${renderTime}ms`);
-
-        const videoPath = result.videoPath!;
-
-        // Render metadata is returned via response headers since the body
-        // is the video file itself.
-        res.setHeader('Content-Type', 'video/mp4');
-        res.setHeader(
-          'Content-Disposition',
-          `attachment; filename="lottie-${taskId}.mp4"`
-        );
-        res.setHeader('X-Task-ID', taskId);
-        res.setHeader('X-Render-Duration', renderTime.toString());
-        res.setHeader(
-          'X-Video-Duration',
-          result.metadata?.duration.toString() || '0'
-        );
-        res.setHeader('X-Video-FPS', result.metadata?.fps.toString() || '0');
-        res.setHeader('X-Video-Width', result.metadata?.width.toString() || '0');
-        res.setHeader(
-          'X-Video-Height',
-          result.metadata?.height.toString() || '0'
-        );
-
-        decrementInCallback = true;
-
-        res.sendFile(videoPath, async (err) => {
-          activeRenders--;
-          console.log(`🔢 Active renders: ${activeRenders}/${maxConcurrentRenders}`);
-
-          if (err) {
-            console.error(`❌ Error sending video file for task ${taskId}:`, err);
-            if (!res.headersSent) {
-              res.status(500).json({
-                success: false,
-                error: 'Failed to send video file',
-              });
-            }
-          } else {
-            console.log(`📤 Video file sent successfully for task ${taskId}`);
-          }
-
-          // Always delete the temporary video file, success or failure
-          try {
-            await fs.unlink(videoPath);
-            console.log(`🗑️  Deleted temporary video: ${videoPath}`);
-          } catch (cleanupError) {
-            console.error(
-              `⚠️  Failed to delete temporary video: ${videoPath}`,
-              cleanupError
-            );
-          }
-        });
-      } finally {
-        // If the callback above didn't run, decrement here
-        if (!decrementInCallback) {
-          activeRenders--;
-          console.log(`🔢 Active renders: ${activeRenders}/${maxConcurrentRenders}`);
-        }
-      }
-    } catch (error: any) {
-      console.error('Render error:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message || 'Internal server error',
-      });
+  function admit(req: Request, res: Response, next: NextFunction) {
+    const settings = getSettings();
+    if (active >= settings.maxConcurrent) {
+      res.setHeader('Retry-After', '5');
+      return res.status(503).json({ success: false, error: 'Server is busy. Please retry later.' });
     }
+    if (settings.demo) {
+      const now = Date.now();
+      for (const [ip, entry] of clients) if (entry.reset <= now) clients.delete(ip);
+      const ip = req.ip || req.socket.remoteAddress || 'unknown';
+      const entry = clients.get(ip) || { count: 0, reset: now + 60_000 };
+      if (entry.count >= settings.requestsPerMinute || (!clients.has(ip) && clients.size >= 4096)) {
+        res.setHeader('Retry-After', String(Math.max(1, Math.ceil((entry.reset - now) / 1000))));
+        return res.status(429).json({ success: false, error: 'Too many requests. Please retry later.' });
+      }
+      entry.count++;
+      clients.set(ip, entry);
+    }
+    active++;
+    let released = false;
+    const state = { controller: new AbortController(), rendering: false,
+      release: () => { if (!released) { active--; released = true; } } };
+    states.set(req, state);
+    const disconnected = () => {
+      if (!res.writableFinished) state.controller.abort();
+      if (!state.rendering) state.release();
+    };
+    req.once('aborted', disconnected);
+    res.once('close', disconnected);
+    res.once('finish', () => { if (!state.rendering) state.release(); });
+    // Reserve a slot BEFORE Multer buffers the upload. Reject stalled uploads too.
+    req.setTimeout(Math.min(settings.timeoutMs, 30_000), () => req.destroy());
+    next();
   }
-);
 
-/**
- * GET /api/health
- */
-router.get('/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    memory: {
-      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
-    },
+  function upload(req: Request, res: Response, next: NextFunction) {
+    multer({ storage: multer.memoryStorage(), limits: { fileSize: getSettings().maxUploadBytes, files: 1, fields: 6, parts: 7, fieldSize: 256 },
+      fileFilter: (_req, file, cb) => {
+        if (file.mimetype === 'application/json' || file.originalname.endsWith('.json')) cb(null, true);
+        else cb(Object.assign(new Error('Only JSON files are allowed'), { statusCode: 400 }));
+      },
+    }).single('file')(req, res, next);
+  }
+
+  router.post('/render', apiKeyAuth, admit, upload, async (req, res, next) => {
+    const state = states.get(req)!;
+    state.rendering = true;
+    req.setTimeout(0);
+    let scratch: string | undefined;
+    try {
+      if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded. Use field "file".' });
+      let json;
+      try { json = JSON.parse(req.file.buffer.toString('utf8')); }
+      catch { return res.status(400).json({ success: false, error: 'Invalid JSON file' }); }
+      const settings = getSettings();
+      const numeric = (name: string) => {
+        if (req.body[name] === undefined) return undefined;
+        const value = Number(req.body[name]);
+        if (!Number.isFinite(value) || value < 0 || (name !== 'quality' && value === 0)) throw new Error(`Invalid ${name}`);
+        return value;
+      };
+      let options: RenderOptions;
+      try {
+        options = { width: numeric('width'), height: numeric('height'), fps: numeric('fps'), quality: numeric('quality'),
+          backgroundColor: req.body.backgroundColor || (settings.demo ? '#ffffff' : undefined),
+          frameRateMode: req.body.frameRateMode || 'speed',
+          maxFrames: settings.maxFrames, maxDimension: settings.maxDimension, maxDuration: settings.maxDuration,
+          timeoutMs: settings.timeoutMs, signal: state.controller.signal };
+        for (const key of ['width', 'height'] as const) {
+          if (options[key] !== undefined && (!Number.isInteger(options[key]) || options[key]! > settings.maxDimension)) throw new Error(`Invalid ${key}: maximum ${settings.maxDimension}`);
+        }
+        if (settings.demo) {
+          // Preserve the source aspect ratio and never enlarge it.
+          if (!json || !Number.isFinite(json.w) || json.w < 2 || !Number.isFinite(json.h) || json.h < 2) throw new Error('Invalid source dimensions');
+          const scale = Math.min(1, (options.width ?? settings.maxDimension) / json.w, (options.height ?? settings.maxDimension) / json.h);
+          options.width = Math.max(2, Math.floor(json.w * scale / 2) * 2);
+          options.height = Math.max(2, Math.floor(json.h * scale / 2) * 2);
+          options.fps = Math.min(options.fps ?? json.fr, json.fr, 30);
+          options.frameRateMode = 'resample';
+          options.encodingPreset = 'veryfast';
+          options.crf = 25;
+        }
+      } catch (error) { return res.status(400).json({ success: false, error: (error as Error).message }); }
+      scratch = await fs.mkdtemp(path.join(os.tmpdir(), 'lottie-http-'));
+      const result = await renderLottie(json, { ...options, outputPath: path.join(scratch, 'output.mp4') });
+      if (res.destroyed) return;
+      if (!result.success) {
+        return res.status(result.errorCode === 'INVALID_INPUT' ? 400 : result.errorCode === 'TIMEOUT' ? 504 : 500)
+          .json({ success: false, error: result.error, errorCode: result.errorCode });
+      }
+      res.setHeader('Content-Type', 'video/mp4');
+      res.setHeader('Content-Disposition', 'attachment; filename="lottie.mp4"');
+      res.setHeader('X-Task-ID', randomUUID());
+      res.setHeader('X-Render-Duration', String(result.duration));
+      res.setHeader('X-Video-Duration', String(result.metadata.duration));
+      res.setHeader('X-Video-FPS', String(result.metadata.fps));
+      res.setHeader('X-Video-Width', String(result.metadata.width));
+      res.setHeader('X-Video-Height', String(result.metadata.height));
+      await new Promise<void>((resolve, reject) => res.sendFile(result.videoPath!, error => error ? reject(error) : resolve()));
+    } catch (error) { next(error); }
+    finally {
+      if (scratch) await fs.rm(scratch, { recursive: true, force: true }).catch(() => {});
+      state.rendering = false;
+      state.release();
+    }
   });
-});
-
-export default router;
+  router.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime(), activeRenders: active,
+    memory: { used: Math.round(process.memoryUsage().heapUsed / 1024 ** 2), total: Math.round(process.memoryUsage().heapTotal / 1024 ** 2) } }));
+  router.get('/config', (_req, res) => {
+    const settings = getSettings();
+    res.json({ demo: settings.demo, requiresApiKey: Boolean(process.env.API_KEY), maxUploadBytes: settings.maxUploadBytes,
+      maxDimension: settings.maxDimension, maxDuration: settings.maxDuration, maxFrames: settings.maxFrames, timeoutMs: settings.timeoutMs });
+  });
+  return router;
+}
+export default createRouter();
