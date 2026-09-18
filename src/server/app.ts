@@ -21,7 +21,12 @@ export function createApp(): Express {
     if (!Number.isSafeInteger(hops) || hops < 1) throw new Error('TRUST_PROXY_HOPS must be a positive integer');
     app.set('trust proxy', hops);
   }
-  if (getSettings().demo) app.use(express.static(path.resolve(__dirname, '../../public'), { index: 'index.html' }));
+  if (getSettings().demo) {
+    app.get('/vendor/lottie.min.js', (_req, res) => {
+      res.sendFile(path.resolve(__dirname, '../../templates/vendor/lottie.min.js'));
+    });
+    app.use(express.static(path.resolve(__dirname, '../../public'), { index: 'index.html' }));
+  }
   return app;
 }
 

@@ -3,133 +3,77 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Lottie to MP4 - lottie-render</title>
-  <style>
-    :root {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
-      color: #24292f;
-      background: #fff;
-      color-scheme: light;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; padding: 48px 24px; }
-    main { max-width: 1000px; margin: auto; }
-    a { color: #0969da; text-underline-offset: 3px; }
-    .header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-    h1 { margin: 0; font: 600 23px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: -.6px; }
-    .header a { color: #57606a; font-size: 13px; }
-    .description { margin: 10px 0 28px; color: #57606a; }
-    .workspace { display: grid; grid-template-columns: 300px minmax(0, 1fr); border: 1px solid #d0d7de; border-radius: 6px; overflow: hidden; }
-    .input-panel { border-right: 1px solid #d0d7de; }
-    h2 { margin: 0; padding: 12px 18px; border-bottom: 1px solid #d8dee4; background: #f6f8fa; font-size: 13px; font-weight: 600; }
-    form { padding: 22px 18px; }
-    .file-label, .key { display: block; font-size: 13px; font-weight: 600; }
-    input[type=file] { display: block; width: 100%; margin-top: 9px; font: inherit; font-size: 12px; color: #57606a; }
-    input[type=file]::file-selector-button { margin-right: 8px; padding: 6px 9px; border: 1px solid #d0d7de; border-radius: 4px; background: #f6f8fa; color: #24292f; cursor: pointer; }
-    #filename { display: block; margin-top: 8px; color: #57606a; font-size: 12px; overflow-wrap: anywhere; }
-    .sample-row { margin: 15px 0 26px; }
-    button, .download { font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
-    button:disabled { opacity: .45; cursor: default; }
-    .text-button { padding: 0; border: 0; background: none; color: #0969da; text-decoration: underline; text-underline-offset: 3px; }
-    .actions { display: flex; gap: 8px; align-items: center; margin-top: 22px; }
-    #render { padding: 8px 14px; border: 1px solid #0969da; border-radius: 4px; background: #0969da; color: #fff; }
-    #render:hover:not(:disabled) { background: #075bbd; }
-    #cancel { padding: 8px 10px; border: 1px solid #d0d7de; border-radius: 4px; background: #fff; color: #57606a; }
-    :focus-visible { outline: 2px solid #0969da; outline-offset: 3px; }
-    .key { margin: 16px 0; }
-    input[type=password] { width: 100%; padding: 8px; margin-top: 6px; border: 1px solid #d0d7de; border-radius: 4px; font: inherit; }
-    .limits { margin: 26px 0 0; padding-top: 18px; border-top: 1px solid #d8dee4; }
-    .limits dt { color: #57606a; font-size: 12px; }
-    .limits dd { margin: 4px 0 0; font-size: 12px; line-height: 1.8; }
-    .output-panel { min-width: 0; }
-    .preview { display: flex; align-items: center; justify-content: center; min-height: 360px; padding: 22px; background: #fafbfc; }
-    #placeholder { color: #6e7781; font-size: 13px; }
-    video { display: block; max-width: 100%; max-height: 360px; }
-    .result { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; min-height: 58px; padding: 12px 18px; border-top: 1px solid #d8dee4; }
-    #status { flex: 1 1 220px; margin: 0; font-size: 12px; color: #57606a; overflow-wrap: anywhere; }
-    #status[data-error="true"] { color: #cf222e; }
-    .download { white-space: nowrap; }
-    footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding-top: 18px; color: #6e7781; font-size: 12px; }
-    footer p { margin: 0; }
-    [hidden] { display: none !important; }
-    @media (max-width: 680px) {
-      body { padding: 24px 16px; }
-      h1 { font-size: 20px; }
-      .workspace { grid-template-columns: 1fr; }
-      .input-panel { border-right: 0; border-bottom: 1px solid #d0d7de; }
-      .preview { min-height: 260px; }
-      video { max-height: 280px; }
-      .limits { margin-top: 20px; }
-    }
-  </style>
+  <title>Lottie to MP4 — lottie-render</title>
+  <link rel="stylesheet" href="/demo.css">
+  <script src="/demo.js" defer></script>
 </head>
 <body>
+  <header class="site-header">
+    <a class="wordmark" href="/" aria-label="lottie-render home">lottie<span class="wordmark-separator">/</span>render</a>
+    <a class="source-link" href="https://github.com/steven-panxd/lottie-render">View on GitHub <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 5h9v9M15 5 5 15"/></svg></a>
+  </header>
   <main>
-    <header class="header">
-      <h1>lottie-render</h1>
-      <a href="https://github.com/steven-panxd/lottie-render">GitHub</a>
-    </header>
-    <p class="description">Convert a Lottie JSON file to MP4.</p>
-    <div class="workspace">
-      <section class="input-panel" aria-labelledby="input-heading">
-        <h2 id="input-heading">Input</h2>
-        <form id="form">
-          <label class="file-label" for="file">Animation file</label>
-          <input id="file" type="file" accept=".json,application/json" aria-describedby="filename limits">
-          <span id="filename">Self-contained Lottie JSON.</span>
-          <p class="sample-row"><button class="text-button" id="sample" type="button" disabled>Try a sample</button></p>
-          <label class="key" id="key-label" hidden>API key<input id="key" type="password" autocomplete="off"></label>
-          <div class="actions">
-            <button id="render" type="submit" disabled>Convert to MP4</button>
-            <button id="cancel" type="button" hidden>Cancel</button>
-          </div>
-          <dl class="limits">
-            <dt>Demo limits</dt>
-            <dd id="limits">Loading...</dd>
-          </dl>
-        </form>
-      </section>
-      <section class="output-panel" aria-labelledby="output-heading">
-        <h2 id="output-heading">Output</h2>
-        <div class="preview" id="preview" aria-busy="false">
-          <p id="placeholder">No video yet</p>
-          <video id="video" controls playsinline hidden aria-label="Rendered animation"></video>
-        </div>
-        <div class="result">
-          <p id="status" role="status" aria-live="polite">Select a file or try the sample.</p>
-          <a id="download" class="download" download="lottie.mp4" hidden>Download MP4</a>
-        </div>
-      </section>
+    <div class="intro">
+      <h1>Lottie to MP4</h1>
+      <p>A small tool for putting your animations into video.</p>
     </div>
-    <footer>
-      <p>H.264 MP4 &middot; White background &middot; No audio</p>
-      <p>Rendered on the server. Files are deleted after transfer.</p>
-    </footer>
+    <div class="workspace" id="workspace">
+      <section class="viewer" aria-label="Animation preview">
+        <div class="viewer-header">
+          <span class="file-title"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2h7l4 4v12H5zM12 2v5h4"/></svg><span id="filename">Loading sample…</span></span>
+          <span id="preview-type">Lottie preview</span>
+        </div>
+        <div class="stage" id="preview" aria-busy="false">
+          <div class="artboard" id="artboard">
+            <iframe id="animation" src="/preview.html" title="Lottie animation" sandbox="allow-scripts" tabindex="-1"></iframe>
+            <video id="video" playsinline preload="auto" hidden aria-label="Converted MP4"></video>
+          </div>
+          <div class="rendering" id="rendering" hidden><span class="spinner" aria-hidden="true"></span>Converting to MP4…</div>
+          <div class="drop-overlay" id="drop-overlay" hidden>Drop your Lottie JSON here</div>
+        </div>
+        <div class="playback">
+          <button id="play" class="play-button" type="button" aria-label="Play animation" disabled>
+            <svg id="play-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 9 6-9 6z"/></svg>
+            <svg id="pause-icon" viewBox="0 0 20 20" aria-hidden="true" hidden><path d="M6 4v12M13 4v12"/></svg>
+          </button>
+          <input id="seek" type="range" min="0" max="1" step="0.001" value="0" aria-label="Animation progress" disabled>
+          <span id="time">0.0 / 0.0s</span>
+        </div>
+      </section>
+      <form id="form" class="export-panel">
+        <div class="file-section">
+          <h2>Your animation</h2>
+          <label class="file-picker" id="file-picker">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M5 15v5h14v-5"/></svg>
+            <span>Choose a JSON file</span>
+            <input id="file" type="file" accept=".json,application/json" aria-label="Choose a JSON file" aria-describedby="upload-hint">
+          </label>
+          <p class="hint" id="upload-hint">Or drop it onto the preview.</p>
+          <button class="text-button" id="sample" type="button" disabled>Try a sample</button>
+        </div>
+        <div class="settings-section">
+          <h2>Video output</h2>
+          <dl class="specs">
+            <div><dt>Format</dt><dd>MP4 <span class="secondary">/ H.264</span></dd></div>
+            <div><dt>Dimensions</dt><dd id="dimensions">—</dd></div>
+            <div><dt>Frame rate</dt><dd id="fps">—</dd></div>
+            <div><dt>Background</dt><dd><span class="color-swatch"></span>White</dd></div>
+          </dl>
+          <p class="hint output-hint">Silent video. Timing stays the same.</p>
+          <label class="key" id="key-label" hidden>API key<input id="key" type="password" autocomplete="off"></label>
+        </div>
+        <div class="export-actions">
+          <button id="render" class="primary-button" type="submit" disabled>Convert to MP4</button>
+          <a id="download" class="primary-button" download="lottie.mp4" hidden>Download MP4 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M4 14v3h12v-3"/></svg></a>
+          <button id="cancel" class="text-button" type="button" hidden>Cancel conversion</button>
+          <p id="status" role="status" aria-live="polite">Loading the demo…</p>
+        </div>
+      </form>
+    </div>
+    <div class="notes">
+      <p id="limits">Loading demo limits…</p>
+      <p>Preview locally. Convert on the server.<br>Uploaded files are deleted after transfer.</p>
+    </div>
   </main>
-<script>
-const el=id=>document.getElementById(id);let selected,config,controller,videoUrl;
-function message(text,error=false){el('status').textContent=text;el('status').dataset.error=String(error)}
-function select(file){selected=file;el('filename').textContent=file.name+' ('+(file.size/1024).toFixed(1)+' KB)';message('Ready to convert.');}
-function busy(on){el('render').disabled=on;el('sample').disabled=on;el('file').disabled=on;el('cancel').hidden=!on;el('preview').setAttribute('aria-busy',String(on))}
-el('file').addEventListener('change',event=>{if(event.target.files[0])select(event.target.files[0])});
-el('cancel').onclick=()=>controller?.abort();
-el('sample').onclick=async()=>{try{const response=await fetch('/sample.json');if(!response.ok)throw Error('Sample unavailable');select(new File([await response.blob()],'sample.json',{type:'application/json'}));await convert()}catch(error){message(error.message,true)}};
-el('form').onsubmit=event=>{event.preventDefault();convert()};
-async function convert(){
- if(!selected){message('Choose a JSON file first.',true);return}
- if(selected.size>config.maxUploadBytes){message('This file exceeds the demo upload limit.',true);return}
- busy(true);controller=new AbortController();message('Rendering...');
- el('download').hidden=true;el('video').hidden=true;el('video').removeAttribute('src');el('video').load();el('placeholder').hidden=false;
- if(videoUrl){URL.revokeObjectURL(videoUrl);videoUrl=undefined}
- try{
-  const data=new FormData();data.append('file',selected);const headers={};if(el('key').value)headers['X-API-Key']=el('key').value;
-  const response=await fetch('/api/render',{method:'POST',body:data,headers,signal:controller.signal});
-  if(!response.ok){let detail;try{detail=await response.json()}catch{}throw Error(detail?.error||`Request failed (${response.status}).`)}
-  videoUrl=URL.createObjectURL(await response.blob());el('video').src=videoUrl;el('video').hidden=false;el('placeholder').hidden=true;el('download').href=videoUrl;el('download').hidden=false;
-  const seconds=Number(response.headers.get('X-Render-Duration'))/1000;message(`${response.headers.get('X-Video-Width')} × ${response.headers.get('X-Video-Height')} · ${Number(response.headers.get('X-Video-Duration')).toFixed(1)}s · ${response.headers.get('X-Video-FPS')} FPS · Rendered in ${seconds.toFixed(1)}s`);
- }catch(error){message(error.name==='AbortError'?'Cancelled.':error.message,error.name!=='AbortError')}finally{controller=undefined;busy(false)}
-}
-fetch('/api/config').then(response=>{if(!response.ok)throw Error('Demo unavailable');return response.json()}).then(data=>{config=data;el('limits').textContent=`Up to ${(data.maxUploadBytes/1024/1024).toFixed(0)} MiB upload · ${data.maxDuration}s · ${data.maxDimension}px · 30 FPS`;el('key-label').hidden=!data.requiresApiKey;busy(false)}).catch(()=>message('Could not load the demo. Please reload in a moment.'));
-</script></body></html>
+</body>
+</html>
