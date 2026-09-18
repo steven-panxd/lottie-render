@@ -77,6 +77,7 @@ h2 { font-size: 13px; line-height: 1.4; font-weight: 600; margin: 0 0 16px; }
 #cancel { margin-top: 12px; }
 #status { color: var(--muted); font-size: 11px; margin: 10px 0 0; min-height: 32px; line-height: 1.55; overflow-wrap: anywhere; }
 #status[data-error="true"] { color: #b42318; }
+#star-prompt a { color: var(--blue); text-underline-offset: 3px; }
 .key { display: block; margin-top: 18px; font-size: 12px; }
 .key input { display: block; width: 100%; border: 1px solid #bac5d6; border-radius: 4px; padding: 8px; margin-top: 6px; }
 .notes { display: flex; justify-content: space-between; gap: 24px; color: var(--muted); font-size: 11px; line-height: 1.75; padding-top: 17px; }

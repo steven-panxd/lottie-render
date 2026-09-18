@@ -1,13 +1,18 @@
 {
   "name": "lottie-render",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Render Lottie animations to MP4 video, frame by frame, using Playwright and FFmpeg \u2014 usable as a library or as a self-hosted HTTP service",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist",
     "templates",
-    "public"
+    "public",
+    "docs",
+    "README.zh-CN.md",
+    "assets/demo.gif",
+    "assets/demo-animation.json",
+    "DOCKER.md"
   ],
   "license": "MIT",
   "author": "Steven Pan",
@@ -18,7 +23,7 @@
   "bugs": {
     "url": "https://github.com/steven-panxd/lottie-render/issues"
   },
-  "homepage": "https://github.com/steven-panxd/lottie-render#readme",
+  "homepage": "https://lottie.xuedo.ng/",
   "scripts": {
     "dev": "tsx watch src/server/start.ts",
     "build": "tsc",
@@ -30,7 +35,8 @@
     "test:render": "tsx src/test-render.ts",
     "typecheck": "tsc -p tsconfig.test.json",
     "postinstall": "playwright install chromium",
-    "serve:demo": "npm run build && node dist/cli.js serve --preset demo"
+    "serve:demo": "npm run build && node dist/cli.js serve --preset demo",
+    "prepack": "npm run build"
   },
   "keywords": [
     "lottie",

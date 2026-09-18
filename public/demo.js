@@ -32,6 +32,7 @@ function clearVideo() {
   if (videoUrl) URL.revokeObjectURL(videoUrl);
   videoUrl = undefined;
   el('download').hidden = true;
+  el('star-prompt').hidden = true;
   el('download').removeAttribute('href');
   el('render').hidden = false;
   el('animation').hidden = false;
@@ -163,6 +164,7 @@ async function convert() {
     el('download').href = videoUrl;
     el('download').download = selected.name.replace(/\.json$/i, '') + '.mp4';
     el('download').hidden = false;
+    el('star-prompt').hidden = false;
     el('render').hidden = true;
     const width = response.headers.get('X-Video-Width'), height = response.headers.get('X-Video-Height');
     el('dimensions').textContent = `${width} × ${height}`;
